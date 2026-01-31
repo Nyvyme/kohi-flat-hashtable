@@ -1,4 +1,6 @@
 Changelog
+- 0.12.0
+
 - 0.11.0
   - Due to changes in the Vulkan layer, the newest SDK must be installed on macOS.
   - Removed rendergraph. Applications are now expected to roll their own bespoke "application renderer"

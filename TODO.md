@@ -2,43 +2,6 @@
 
 The items in this list are not in any particular order. This list will be updated occasionally as development progresses.
 
-# Future Releases:
-
-## 0.11.0 Release
-
-- [x] Remove rendergraph - have application drive render process directly.
-- [x] Rework xform system:
-  - [x] Rename xform->ktransform
-  - [x] Change to use typedefed u32s instead of khandles.
-- [x] Rework hierarchy graph to use typedefed u32s instead of khandles.
-- [x] Rework audio system to use typedefed u16s instead of khandles.
-- [x] Rework timeline system to use typedefed u16s instead of khandles.
-- [x] Rework renderer backend to use u16 indices for internal texture ids and samplers instead of khandles.
-- [x] Rework Material system to replace khandles with typedefed u16s.
-  - [x] Renamed material_system -> kmaterial_system, along with all associated types.
-- [x] Rework Shader system to replace khandles with typedefed u16s.
-- [x] Move renderer code out of kmaterial_system and into a kmaterial_renderer (or maybe just move to the bespoke renderer?)
-- [x] Move scene to game code, game-specific.
-  - [x] Change scenes to use single level of 'inheritance', i.e. have a base_entity that has props, then a static_mesh_entity that has `base_entity base` member.
-  - [x] Remove all references to scenes in engine core/runtime.
-- [x] Refactor Testbed project for the above changes.
-- [x] Remove viewports, enhance camera system to include this instead.
-- [x] Change to use multiple vertex buffers instead of a single one to handle extra data (i.e. bone
-      ids/weights, terrain material weights, etc. should be in a second buffer). Could then use the
-      same pipeline for static/animated geometry by binding a 'dummy' vertex binding for binding 1
-      and not using those attributes in the shader if there are no bone weights.
-- [x] Remove legacy systems (i.e. hierarchy system, etc.)
-- [x] Hoist Overdrive project to it's own repo, refactor similar to Testbed.
-- [x] Bugfix: #274 Fix validation issues regarding window resize.
-- [x] Bugfix: #268 Add app config renderer option for "require_discrete_gpu". Default to false and pass down to Vulkan
-- [x] Bugfix: #252 Fix/ensure macOS build script works as intended.
-- [x] Animation system/animated meshes.
-- [x] Performance: Split back out static/animated model shaders.
-- [x] Bugfix: #237 Fix/ensure Windows build script works as intended. Perhaps remove Powershell requirement?
-- [x] Build: Make a setup script that creates the clangd 'compile_flags.txt'
-      files that is independent of the build process and can be run separately
-      when the project is first cloned.
-
 ## 0.12.0 Release
 
 - [ ] Bugfix: #264 Address window closing issue on i3wm.
@@ -583,5 +546,40 @@ The items in this list are not in any particular order. This list will be update
   - [x] Fire VFS-specific event when a filesystem watch updates.
   - [x] Intercept above message in asset system, interpret how to handle it.
   - [x] Fire off asset-system specific hot reload event, accompanied by watch id.
+
+## 0.11.0 Release
+
+- [x] Remove rendergraph - have application drive render process directly.
+- [x] Rework xform system:
+  - [x] Rename xform->ktransform
+  - [x] Change to use typedefed u32s instead of khandles.
+- [x] Rework hierarchy graph to use typedefed u32s instead of khandles.
+- [x] Rework audio system to use typedefed u16s instead of khandles.
+- [x] Rework timeline system to use typedefed u16s instead of khandles.
+- [x] Rework renderer backend to use u16 indices for internal texture ids and samplers instead of khandles.
+- [x] Rework Material system to replace khandles with typedefed u16s.
+  - [x] Renamed material_system -> kmaterial_system, along with all associated types.
+- [x] Rework Shader system to replace khandles with typedefed u16s.
+- [x] Move renderer code out of kmaterial_system and into a kmaterial_renderer (or maybe just move to the bespoke renderer?)
+- [x] Move scene to game code, game-specific.
+  - [x] Change scenes to use single level of 'inheritance', i.e. have a base_entity that has props, then a static_mesh_entity that has `base_entity base` member.
+  - [x] Remove all references to scenes in engine core/runtime.
+- [x] Refactor Testbed project for the above changes.
+- [x] Remove viewports, enhance camera system to include this instead.
+- [x] Change to use multiple vertex buffers instead of a single one to handle extra data (i.e. bone
+      ids/weights, terrain material weights, etc. should be in a second buffer). Could then use the
+      same pipeline for static/animated geometry by binding a 'dummy' vertex binding for binding 1
+      and not using those attributes in the shader if there are no bone weights.
+- [x] Remove legacy systems (i.e. hierarchy system, etc.)
+- [x] Hoist Overdrive project to it's own repo, refactor similar to Testbed.
+- [x] Bugfix: #274 Fix validation issues regarding window resize.
+- [x] Bugfix: #268 Add app config renderer option for "require_discrete_gpu". Default to false and pass down to Vulkan
+- [x] Bugfix: #252 Fix/ensure macOS build script works as intended.
+- [x] Animation system/animated meshes.
+- [x] Performance: Split back out static/animated model shaders.
+- [x] Bugfix: #237 Fix/ensure Windows build script works as intended. Perhaps remove Powershell requirement?
+- [x] Build: Make a setup script that creates the clangd 'compile_flags.txt'
+      files that is independent of the build process and can be run separately
+      when the project is first cloned.
 
 Back to [readme](readme.md)
