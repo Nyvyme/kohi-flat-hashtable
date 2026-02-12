@@ -132,6 +132,8 @@ typedef struct hf_terrain {
 	u64 base_vertex_buffer_offset;
 	hf_vertex_3d* vertices;
 
+	extents_3d extents;
+
 	hf_block* blocks;
 
 	// Storing a reference to the shader for convenience.
@@ -182,3 +184,10 @@ KAPI i32 hf_terrain_chunk_get_vert_index_at(const hf_chunk* chunk, u8 x, u8 z);
 KAPI void hf_terrain_recalculate_vertices(hf_terrain* t);
 
 KAPI void hf_terrain_chunk_recalculate_vertices(hf_terrain* t, const hf_chunk* chunk);
+
+/**
+ * Attempts to retrieve the terrain height at the given location. A false result means there is no terrain at that
+ * location, which can mean _either_ out-of-bounds or that there is a hole in the terrain at that location.
+ *
+ */
+KAPI b8 hf_terrain_get_height_at(const hf_terrain* t, f32 world_x, f32 world_z, vec3* out_pos, vec3* out_normal);

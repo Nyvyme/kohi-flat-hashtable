@@ -5,6 +5,7 @@
 #include <containers/darray.h>
 #include <containers/u64_bst.h>
 #include <core/event.h>
+#include <core_render_types.h>
 #include <debug/kassert.h>
 #include <defines.h>
 #include <identifiers/identifier.h>
@@ -15,6 +16,7 @@
 #include <serializers/kasset_audio_serializer.h>
 #include <serializers/kasset_bitmap_font_serializer.h>
 #include <serializers/kasset_heightmap_terrain_serializer.h>
+#include <serializers/kasset_hf_terrain_serializer.h>
 #include <serializers/kasset_image_serializer.h>
 #include <serializers/kasset_material_serializer.h>
 #include <serializers/kasset_model_serializer.h>
@@ -23,9 +25,7 @@
 #include <strings/kname.h>
 #include <strings/kstring.h>
 
-#include "containers/binary_string_table.h"
 #include "core/engine.h"
-#include "core_render_types.h"
 #include "platform/vfs.h"
 
 typedef struct asset_watch {
@@ -779,6 +779,93 @@ void asset_system_release_heightmap_terrain(struct asset_system_state* state, ka
 			asset->material_count = 0;
 		}
 		KFREE_TYPE(asset, kasset_heightmap_terrain, MEMORY_TAG_ASSET);
+	}
+}
+
+// ////////////////////////////////////
+// HEIGHTFIELD TERRAIN ASSETS
+// ////////////////////////////////////
+
+typedef struct kasset_hf_terrain_vfs_context {
+	void* listener;
+	PFN_kasset_hf_terrain_loaded_callback callback;
+	kasset_hf_terrain* asset;
+} kasset_hf_terrain_vfs_context;
+
+static void vfs_on_hf_terrain_asset_loaded_callback(struct vfs_state* vfs, vfs_asset_data asset_data) {
+	kasset_hf_terrain_vfs_context* context = asset_data.context;
+	kasset_hf_terrain* out_asset = context->asset;
+	b8 result = kasset_hf_terrain_deserialize(asset_data.size, asset_data.bytes, out_asset);
+	if (!result) {
+		KERROR("Failed to deserialize hf_terrain asset. See logs for details.");
+	}
+
+	if (context->callback) {
+		context->callback(context->listener, out_asset);
+	}
+}
+
+// async load from game package.
+kasset_hf_terrain* asset_system_request_hf_terrain(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_hf_terrain_loaded_callback callback) {
+	return asset_system_request_hf_terrain_from_package(state, state->default_package_name_str, name, listener, callback);
+}
+// sync load from game package.
+kasset_hf_terrain* asset_system_request_hf_terrain_sync(struct asset_system_state* state, const char* name) {
+	return asset_system_request_hf_terrain_from_package_sync(state, state->default_package_name_str, name);
+}
+// async load from specific package.
+kasset_hf_terrain* asset_system_request_hf_terrain_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_hf_terrain_loaded_callback callback) {
+	if (!state || !name || !string_length(name)) {
+		KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+		return 0;
+	}
+
+	kasset_hf_terrain* out_asset = KALLOC_TYPE(kasset_hf_terrain, MEMORY_TAG_ASSET);
+
+	kasset_hf_terrain_vfs_context* context = KALLOC_TYPE(kasset_hf_terrain_vfs_context, MEMORY_TAG_ASSET);
+	context->asset = out_asset;
+	context->callback = callback;
+	context->listener = listener;
+
+	vfs_request_info info = {
+		.asset_name = kname_create(name),
+		.package_name = state->default_package_name,
+		.is_binary = true,
+		.vfs_callback = vfs_on_hf_terrain_asset_loaded_callback,
+		.context = context,
+		.context_size = sizeof(kasset_hf_terrain_vfs_context)};
+	vfs_request_asset(state->vfs, info);
+
+	return out_asset;
+}
+// sync load from specific package.
+kasset_hf_terrain* asset_system_request_hf_terrain_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name) {
+	if (!state || !name || !string_length(name)) {
+		KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+		return 0;
+	}
+
+	kasset_hf_terrain* out_asset = KALLOC_TYPE(kasset_hf_terrain, MEMORY_TAG_ASSET);
+	vfs_request_info info = {
+		.asset_name = kname_create(name),
+		.package_name = kname_create(package_name),
+		.is_binary = true,
+	};
+	vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
+
+	b8 result = kasset_hf_terrain_deserialize(data.size, data.bytes, out_asset);
+	if (!result) {
+		KERROR("Failed to deserialize hf_terrain asset. See logs for details.");
+		KFREE_TYPE(out_asset, kasset_hf_terrain, MEMORY_TAG_ASSET);
+		return KNULL;
+	}
+
+	return out_asset;
+}
+
+void asset_system_release_hf_terrain(struct asset_system_state* state, kasset_hf_terrain* asset) {
+	if (state && asset) {
+		KFREE_TYPE(asset, kasset_model, MEMORY_TAG_ASSET);
 	}
 }
 

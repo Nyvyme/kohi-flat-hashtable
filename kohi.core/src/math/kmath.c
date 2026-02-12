@@ -459,12 +459,12 @@ b8 ray_intersects_triangle(const ray* r, const triangle* t) {
 	return ray_intersects_triangle_internal(r, t, false, KNULL, KNULL, KNULL);
 }
 
-vec3 get_pos_from_vector_at(u32 vertex_count, u32 vertex_element_size, void* vertices, u32 index) {
+vec3 get_pos_from_vector_at(u32 vertex_count, u32 vertex_element_size, const void* vertices, u32 index) {
 	vec3* v = (vec3*)(((u64)vertices) + (vertex_element_size * index));
 	return *v;
 }
 
-b8 ray_pick_triangle(const ray* r, b8 backface_cull, u32 vertex_count, u32 vertex_element_size, void* vertices, u32 index_count, u32* indices, triangle* out_triangle, vec3* out_hit_pos, vec3* out_hit_normal) {
+b8 ray_pick_triangle(const ray* r, b8 backface_cull, u32 vertex_count, u32 vertex_element_size, const void* vertices, u32 index_count, const u32* indices, triangle* out_triangle, vec3* out_hit_pos, vec3* out_hit_normal) {
 	b8 hit_any = false;
 	f32 closest_dist = r->max_distance;
 

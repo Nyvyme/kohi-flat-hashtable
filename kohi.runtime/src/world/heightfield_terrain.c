@@ -108,6 +108,10 @@ void generate_chunk(hf_terrain* t, hf_chunk* chunk, u16 chunk_x, u16 chunk_z, u1
 			// HACK: Should start at 0, but doing this in the meantime.
 			// TODO: This should also be using the Y from the previous chunk.
 			v->position.y = (ksin(v->position.x / HF_VERTEX_STRIDE) + kcos(v->position.z / HF_VERTEX_STRIDE)) * 2.0f;
+			// HACK: test
+			if (x >= 3 && x <= 6 && z >= 3 && z <= 6) {
+				v->position.y = 4.0f;
+			}
 
 			// Tex coords are encoded in normal/position.
 			v->position.w = x + (chunk_x * HF_CHUNK_QUAD_COUNT);
@@ -234,10 +238,18 @@ void generate_block(hf_terrain* t, hf_block* block, u16 block_x, u16 block_z, u1
 }
 
 hf_terrain hf_terrain_generate(u16 blocks_x, u16 blocks_z) {
+	KASSERT(blocks_x > 0 && blocks_z > 0);
+
 	hf_terrain t = {0};
 
 	t.block_count_x = blocks_x;
 	t.block_count_z = blocks_z;
+
+	// Ensure the terrain is centered in the world.
+	t.extents.max.z = (t.block_count_z * HF_BLOCK_QUAD_COUNT * HF_QUAD_SCALE) * 0.5f;
+	t.extents.max.x = (t.block_count_x * HF_BLOCK_QUAD_COUNT * HF_QUAD_SCALE) * 0.5f;
+	t.extents.min.z = t.extents.max.z * -1.0f;
+	t.extents.min.x = t.extents.max.x * -1.0f;
 
 	KALLOC_TYPE_CARRAY(hf_block, blocks_x * blocks_z);
 
@@ -287,7 +299,11 @@ hf_terrain hf_terrain_generate(u16 blocks_x, u16 blocks_z) {
 	for (u8 z = 0; z < blocks_z; ++z) {
 		for (u8 x = 0; x < blocks_x; ++x) {
 			u32 index = (z * blocks_z) + x;
-			generate_block(&t, &t.blocks[index], x, z, blocks_z);
+			hf_block* block = &t.blocks[index];
+			generate_block(&t, block, x, z, blocks_z);
+
+			t.extents.min = vec3_min(block->aabb.min, t.extents.min);
+			t.extents.max = vec3_max(block->aabb.max, t.extents.max);
 		}
 	}
 
@@ -410,4 +426,46 @@ void hf_terrain_chunk_recalculate_vertices(hf_terrain* t, const hf_chunk* chunk)
 	u32 chunk_offset = chunk->vertex_offset;
 	generate_normals(HF_CHUNK_VERTEX_COUNT, t->vertices + chunk_offset, HF_INDEX_COUNT, t->indices);
 	generate_tangents(HF_CHUNK_VERTEX_COUNT, t->vertices + chunk_offset, HF_INDEX_COUNT, t->indices);
+}
+
+b8 hf_terrain_get_height_at(const hf_terrain* t, f32 world_x, f32 world_z, vec3* out_pos, vec3* out_normal) {
+	if (!t || !aabb_contains_point((vec3){world_x, 0.0f, world_z}, t->extents)) {
+		return false;
+	}
+
+	ray r = ray_create((vec3){world_x, 99999.0, world_z}, vec3_down(), 999999.0, RAY_FLAG_NONE);
+
+	// FIXME: Brute-forced like a dingus...
+	u32 block_count = t->block_count_z * t->block_count_x;
+	for (u32 b = 0; b < block_count; ++b) {
+		hf_block* block = &t->blocks[b];
+
+		f32 tmin = 0.0f;
+		f32 tmaxi = r.max_distance;
+		b8 block_hit = ray_intersects_aabb(block->aabb, r.origin, r.direction, r.max_distance, &tmin, &tmaxi);
+		if (block_hit) {
+			// Iterate the chunks and check for a aabb hit there.
+			for (u32 c = 0; c < HF_BLOCK_CHUNK_COUNT; ++c) {
+				tmin = 0.0f;
+				tmaxi = r.max_distance;
+				b8 chunk_hit = ray_intersects_aabb(block->chunks[c].aabb, r.origin, r.direction, r.max_distance, &tmin, &tmaxi);
+				if (chunk_hit) {
+					u64 vertex_offset = (block->chunks[c].vertex_buffer_offset - t->base_vertex_buffer_offset) / sizeof(hf_vertex_3d);
+					triangle tri;
+					vec3 hit_pos;
+					vec3 hit_normal;
+					b8 triangle_hit = ray_pick_triangle(&r, false, HF_CHUNK_VERTEX_COUNT, sizeof(hf_vertex_3d), t->vertices + vertex_offset, HF_INDEX_COUNT, t->indices, &tri, &hit_pos, &hit_normal);
+					if (triangle_hit) {
+						// Collision! Yay
+						/* KTRACE("Terrain hit: pos=%V3.3, normal=%V3.3", &hit_pos, &hit_normal); */
+						*out_pos = hit_pos;
+						*out_normal = hit_normal;
+						return true;
+					}
+				}
+			}
+		}
+	}
+
+	return false;
 }

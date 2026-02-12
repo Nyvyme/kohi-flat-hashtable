@@ -2711,10 +2711,12 @@ KINLINE b8 aabb_contains_aabb(aabb a, aabb b) {
 		b.max.z <= a.max.z);
 }
 
-KINLINE ray ray_create(vec3 position, vec3 direction) {
+KINLINE ray ray_create(vec3 position, vec3 direction, f32 max_distance, ray_flags flags) {
 	return (ray){
 		.origin = position,
-		.direction = direction};
+		.direction = direction,
+		.max_distance = max_distance,
+		.flags = flags};
 }
 
 KAPI ray ray_transformed(const ray* r, mat4 transform);
@@ -2729,7 +2731,7 @@ KAPI b8 raycast_disc_3d(const ray* r, vec3 center, vec3 normal, f32 outer_radius
 
 KAPI b8 ray_intersects_triangle(const ray* r, const triangle* t);
 
-KAPI b8 ray_pick_triangle(const ray* r, b8 backface_cull, u32 vertex_count, u32 vertex_element_size, void* vertices, u32 index_count, u32* indices, triangle* out_triangle, vec3* out_hit_pos, vec3* out_hit_normal);
+KAPI b8 ray_pick_triangle(const ray* r, b8 backface_cull, u32 vertex_count, u32 vertex_element_size, const void* vertices, u32 index_count, const u32* indices, triangle* out_triangle, vec3* out_hit_pos, vec3* out_hit_normal);
 
 KAPI b8 ray_intersects_sphere(const ray* r, vec3 center, f32 radius, vec3* out_point, f32* out_distance);
 

@@ -88,6 +88,13 @@ KAPI b8 kscene_raycast(struct kscene* scene, const struct ray* r, struct raycast
 KAPI b8 kscene_hf_terrain_raycast(struct kscene* scene, const ray* r, hf_block* out_block, hf_chunk* out_chunk, vec3* out_pos, vec3* out_normal);
 KAPI hf_terrain* kscene_hf_terrain_get(struct kscene* scene);
 
+/**
+ * Attempts to retrieve the terrain height at the given location. A false result means there is no terrain at that
+ * location, which can mean _either_ out-of-bounds or that there is a hole in the terrain at that location.
+ *
+ */
+KAPI b8 kscene_hf_terrain_get_height_at(struct kscene* scene, f32 world_x, f32 world_z, vec3* out_pos, vec3* out_normal);
+
 KAPI kentity kscene_get_entity_by_name(struct kscene* scene, kname name);
 
 KAPI kentity_flags kscene_get_entity_flags(struct kscene* scene, kentity entity);

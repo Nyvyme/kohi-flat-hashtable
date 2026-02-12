@@ -1760,6 +1760,10 @@ hf_terrain* kscene_hf_terrain_get(struct kscene* scene) {
 	return &scene->hf;
 }
 
+b8 kscene_hf_terrain_get_height_at(struct kscene* scene, f32 world_x, f32 world_z, vec3* out_pos, vec3* out_normal) {
+	return hf_terrain_get_height_at(&scene->hf, world_x, world_z, out_pos, out_normal);
+}
+
 kentity kscene_get_entity_by_name(struct kscene* scene, kname name) {
 	const bt_node* node = u64_bst_find(scene->name_lookup, name);
 	if (node) {

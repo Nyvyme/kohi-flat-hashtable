@@ -168,6 +168,17 @@ KAPI kasset_heightmap_terrain* asset_system_request_heightmap_terrain_from_packa
 KAPI void asset_system_release_heightmap_terrain(struct asset_system_state* state, kasset_heightmap_terrain* asset);
 
 // ////////////////////////////////////
+// HEIGHTFIELD TERRAIN ASSETS
+// ////////////////////////////////////
+
+typedef void (*PFN_kasset_hf_terrain_loaded_callback)(void* listener, kasset_hf_terrain* asset);
+KAPI kasset_hf_terrain* asset_system_request_hf_terrain(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_hf_terrain_loaded_callback callback);
+KAPI kasset_hf_terrain* asset_system_request_hf_terrain_sync(struct asset_system_state* state, const char* name);
+KAPI kasset_hf_terrain* asset_system_request_hf_terrain_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_hf_terrain_loaded_callback callback);
+KAPI kasset_hf_terrain* asset_system_request_hf_terrain_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name);
+KAPI void asset_system_release_hf_terrain(struct asset_system_state* state, kasset_hf_terrain* asset);
+
+// ////////////////////////////////////
 // MATERIAL ASSETS
 // ////////////////////////////////////
 

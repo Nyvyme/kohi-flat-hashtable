@@ -1,5 +1,6 @@
 #pragma once
 
+#include "containers/binary_string_table.h"
 #include "core_render_types.h"
 #include "defines.h"
 #include "identifiers/identifier.h"
@@ -25,8 +26,7 @@ typedef enum kasset_type {
 	/** An image, typically (but not always) used as a texture. */
 	KASSET_TYPE_IMAGE = 1,
 	KASSET_TYPE_MATERIAL = 2,
-	// TODO: use this for the next asset type
-	KASSET_TYPE_RESERVED_0 = 3,
+	KASSET_TYPE_HEIGHTFIELD_TERRAIN = 3,
 	KASSET_TYPE_HEIGHTMAP_TERRAIN = 4,
 	// TODO: use this for the next asset type
 	KASSET_TYPE_RESERVED_1 = 5,
@@ -517,3 +517,56 @@ typedef struct kasset_model {
 	vec3 center;
 	extents_3d extents;
 } kasset_model;
+
+#define KASSET_TYPE_NAME_HEIGHTFIELD_TERRAIN "HeightFieldTerrain"
+
+typedef struct kasset_hf_terrain_vertex {
+	f32 y_offset;
+} kasset_hf_terrain_vertex;
+
+typedef struct kasset_hf_terrain_chunk {
+	u8 material_index;
+} kasset_hf_terrain_chunk;
+
+#define KASSET_HF_TERRAIN_CHUNK_COUNT 256
+#define KASSET_HF_SPLAT_RES 1024
+
+typedef struct kasset_hf_terrain_block {
+	kasset_hf_terrain_chunk chunks[KASSET_HF_TERRAIN_CHUNK_COUNT];
+
+	// Number of pixels along x
+	u32 splatmap_size_x;
+	// Number of pixels along y
+	u32 splatmap_size_y;
+	// pixel count * 4 (channels, rgba)
+	u8 splatmap_pixels[KASSET_HF_SPLAT_RES * KASSET_HF_SPLAT_RES * 4];
+} kasset_hf_terrain_block;
+
+typedef struct kasset_hf_terrain_material {
+	u32 albedo_str_index;
+	u32 normal_str_index;
+	u32 mra_str_index;
+} kasset_hf_terrain_material;
+
+typedef struct kasset_hf_terrain_material_names {
+	const char* albedo_str;
+	const char* normal_str;
+	const char* mra_str;
+} kasset_hf_terrain_material_names;
+
+typedef struct kasset_hf_terrain {
+
+	// Number of blocks along x axis. Must be at least 1.
+	u16 block_count_x;
+	// Number of blocks along z axis. Must be at least 1.
+	u16 block_count_z;
+	kasset_hf_terrain_block* blocks;
+
+	u32 vertex_count;
+	kasset_hf_terrain_vertex* vertices;
+
+	u8 material_count;
+	kasset_hf_terrain_material* materials;
+	kasset_hf_terrain_material_names* material_names;
+
+} kasset_hf_terrain;
