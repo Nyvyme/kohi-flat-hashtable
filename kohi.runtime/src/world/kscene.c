@@ -2857,6 +2857,28 @@ hf_terrain_render_data kscene_get_hf_terrain_render_data(
 	return data;
 }
 
+hf_terrain_material_data* kscene_get_hf_terrain_materials(struct kscene* scene, u8* out_count) {
+	if (!scene || !out_count || !scene->hf.vertices) {
+		return KNULL;
+	}
+
+	hf_terrain_material_data* materials = KALLOC_TYPE_CARRAY(hf_terrain_material_data, scene->hf.material_count);
+	*out_count = scene->hf.material_count;
+
+	for (u8 i = 0; i < HF_TERRAIN_MAX_MATERIALS; ++i) {
+		materials[i].albedo_asset_name = scene->hf.albedo_asset_names[i];
+		materials[i].albedo_asset_package_name = scene->hf.albedo_package_names[i];
+
+		materials[i].normal_asset_name = scene->hf.normal_asset_names[i];
+		materials[i].normal_asset_package_name = scene->hf.normal_package_names[i];
+
+		materials[i].mra_asset_name = scene->hf.mra_asset_names[i];
+		materials[i].mra_asset_package_name = scene->hf.mra_package_names[i];
+	}
+
+	return materials;
+}
+
 #if KOHI_DEBUG
 kdebug_geometry_render_data* kscene_get_debug_render_data(
 	struct kscene* scene,

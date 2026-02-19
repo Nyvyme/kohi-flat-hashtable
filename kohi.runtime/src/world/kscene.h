@@ -55,6 +55,15 @@ typedef enum kscene_flag_bits {
 
 typedef u32 kscene_flags;
 
+typedef struct hf_terrain_material_data {
+	kname albedo_asset_name;
+	kname albedo_asset_package_name;
+	kname normal_asset_name;
+	kname normal_asset_package_name;
+	kname mra_asset_name;
+	kname mra_asset_package_name;
+} hf_terrain_material_data;
+
 typedef void (*PFN_scene_loaded)(struct kscene* scene, void* context);
 
 // Creates the scene and kicks off the loading process.
@@ -213,6 +222,9 @@ KAPI hf_terrain_render_data kscene_get_hf_terrain_render_data(
 	struct frame_data* p_frame_data,
 	kfrustum* frustum,
 	u32 flags);
+
+// NOTE: Caller should free the dynamically-allocated array.
+KAPI hf_terrain_material_data* kscene_get_hf_terrain_materials(struct kscene* scene, u8* out_count);
 
 #if KOHI_DEBUG
 KAPI kdebug_geometry_render_data* kscene_get_debug_render_data(

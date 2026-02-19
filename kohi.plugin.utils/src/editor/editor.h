@@ -2,6 +2,7 @@
 
 #include "kui_types.h"
 #include "math/math_types.h"
+#include "world/heightfield_terrain.h"
 #include <core/frame_data.h>
 #include <core/keymap.h>
 #include <kui_system.h>
@@ -47,12 +48,22 @@ typedef struct keditor_gizmo_pass_data {
 } keditor_gizmo_pass_data;
 
 typedef enum hf_terrain_edit_mode {
+	HF_TERRAIN_EDIT_MODE_GENERAL,
 	HF_TERRAIN_EDIT_MODE_PAINT,
 	HF_TERRAIN_EDIT_MODE_ELEVATION,
 	HF_TERRAIN_EDIT_MODE_CHUNK,
 	HF_TERRAIN_EDIT_MODE_REMOVE,
 	HF_TERRAIN_EDIT_MODE_COUNT
 } hf_terrain_edit_mode;
+
+typedef enum hf_terrain_elevation_edit_mode {
+	HF_TERRAIN_ELEVATION_EDIT_MODE_ADJUST_HEIGHT,
+	HF_TERRAIN_ELEVATION_EDIT_MODE_DECREASE_HEIGHT,
+	HF_TERRAIN_ELEVATION_EDIT_MODE_INCREASE_HEIGHT,
+	HF_TERRAIN_ELEVATION_EDIT_MODE_SET_HEIGHT,
+	HF_TERRAIN_ELEVATION_EDIT_MODE_SMOOTH,
+	HF_TERRAIN_ELEVATION_EDIT_MODE_COUNT
+} hf_terrain_elevation_edit_mode;
 
 typedef struct editor_state {
 	// Editor camera
@@ -165,10 +176,19 @@ typedef struct editor_state {
 	kui_control hf_terrain_bg_panel;
 	kui_control hf_terrain_title;
 	kui_control hf_terrain_save_button;
+	kui_control hft_mode_general_checkbox;
 	kui_control hft_mode_paint_checkbox;
 	kui_control hft_mode_elevation_checkbox;
 	kui_control hft_mode_chunk_checkbox;
 	kui_control hft_mode_remove_checkbox;
+
+	kui_control hft_mode_general_content;
+	kui_control hft_general_scrollable_control;
+	kui_control hft_general_content_container;
+	kui_control hft_general_material_names[HF_TERRAIN_MAX_MATERIALS];
+	kui_control hft_general_material_albedo_image_boxes[HF_TERRAIN_MAX_MATERIALS];
+	kui_control hft_general_material_normal_image_boxes[HF_TERRAIN_MAX_MATERIALS];
+	kui_control hft_general_material_mra_image_boxes[HF_TERRAIN_MAX_MATERIALS];
 
 	kui_control hft_mode_paint_content;
 	kui_control hft_paint_brush_diameter_textbox;

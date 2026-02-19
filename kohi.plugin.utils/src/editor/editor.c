@@ -3,6 +3,7 @@
 #include "assets/kasset_types.h"
 #include "audio/audio_frontend.h"
 #include "controls/checkbox_control.h"
+#include "controls/image_box_control.h"
 #include "controls/kui_scrollable.h"
 #include "controls/kui_tree_item.h"
 #include "core/event.h"
@@ -24,6 +25,7 @@
 #include "strings/kname.h"
 #include "strings/kstring.h"
 #include "systems/asset_system.h"
+#include "systems/font_system.h"
 #include "systems/kcamera_system.h"
 #include "systems/kshader_system.h"
 #include "systems/plugin_system.h"
@@ -567,7 +569,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 	{
 		state->hf_terrain_window_width = 540.0f;
 		state->hf_terrain_right_col_x = 130.0f;
-		state->hf_terrain_bg_panel = kui_panel_control_create(kui_state, "hf_terrain_bg_panel", (vec2){state->hf_terrain_window_width, 400.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.75f});
+		state->hf_terrain_bg_panel = kui_panel_control_create(kui_state, "hf_terrain_bg_panel", (vec2){state->hf_terrain_window_width, 600.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.75f});
 		KASSERT(kui_system_control_add_child(kui_state, state->editor_root, state->hf_terrain_bg_panel));
 		kui_control_position_set(kui_state, state->hf_terrain_bg_panel, (vec3){1280 - (state->hf_terrain_window_width + 10)});
 		kui_control_set_is_active(kui_state, state->hf_terrain_bg_panel, false);
@@ -588,7 +590,72 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			kui_control_set_on_click(kui_state, state->hf_terrain_save_button, hft_save_button_clicked);
 		}
 
-		// Paint sub-mode - active by default
+		// General sub-mode - active by default.
+		{
+			state->hft_mode_general_checkbox = kui_checkbox_control_create(kui_state, "hft_mode_general_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Gen.");
+			KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_general_checkbox));
+			kui_control_position_set(kui_state, state->hft_mode_general_checkbox, (vec3){5, 50, 0});
+			kui_control_set_user_data(kui_state, state->hft_mode_general_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+			kui_checkbox_set_on_checked(kui_state, state->hft_mode_general_checkbox, hf_terrain_checkbox_check_changed);
+			kui_checkbox_set_checked(kui_state, state->hft_mode_general_checkbox, true);
+
+			// Content pane
+			state->hft_mode_general_content = kui_base_control_create(kui_state, "hft_mode_general_content", KUI_CONTROL_TYPE_BASE);
+			KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_general_content));
+			kui_control_position_set(kui_state, state->hft_mode_general_content, (vec3){5, 90, 0});
+
+			// Scrollable content control
+			state->hft_general_scrollable_control = kui_scrollable_control_create(kui_state, "hft_general_scrollable_control", (vec2){state->hf_terrain_window_width, 200}, true, true);
+			KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_general_content, state->hft_general_scrollable_control));
+			kui_control_position_set(kui_state, state->hft_general_scrollable_control, (vec3){0, 50, 0});
+
+			state->hft_general_content_container = kui_scrollable_control_get_content_container(state->kui_state, state->hft_general_scrollable_control);
+
+			// Terrain material listing
+			f32 imagebox_size = 64;
+			f32 imagebox_padding = 5.0f;
+
+			for (u8 i = 0; i < HF_TERRAIN_MAX_MATERIALS; ++i) {
+				// Label
+				{
+					char* name = string_format("hft_general_material_name_%u", i);
+					char* text = string_format("Material %u", i);
+					state->hft_general_material_names[i] = kui_label_control_create(state->kui_state, name, FONT_TYPE_SYSTEM, state->font_name, state->font_size, text);
+					string_free(name);
+					string_free(text);
+					KASSERT(kui_system_control_add_child(kui_state, state->hft_general_content_container, state->hft_general_material_names[i]));
+					kui_control_position_set(kui_state, state->hft_general_material_names[i], (vec3){5, i * (imagebox_size + imagebox_padding), 0});
+				}
+				// Albedo
+				{
+					char* name = string_format("hft_general_material_albedo_image_box_%u", i);
+					state->hft_general_material_albedo_image_boxes[i] = kui_image_box_control_create(state->kui_state, name, (vec2i){imagebox_size, imagebox_size});
+					string_free(name);
+					KASSERT(kui_system_control_add_child(kui_state, state->hft_general_content_container, state->hft_general_material_albedo_image_boxes[i]));
+					kui_control_position_set(kui_state, state->hft_general_material_albedo_image_boxes[i], (vec3){200, i * (imagebox_size + imagebox_padding), 0});
+				}
+				// Normal
+				{
+					char* name = string_format("hft_general_material_normal_image_box_%u", i);
+					state->hft_general_material_normal_image_boxes[i] = kui_image_box_control_create(state->kui_state, name, (vec2i){imagebox_size, imagebox_size});
+					string_free(name);
+					KASSERT(kui_system_control_add_child(kui_state, state->hft_general_content_container, state->hft_general_material_normal_image_boxes[i]));
+					kui_control_position_set(kui_state, state->hft_general_material_normal_image_boxes[i], (vec3){269, i * (imagebox_size + imagebox_padding), 0});
+				}
+				// MRA
+				{
+					char* name = string_format("hft_general_material_mra_image_box_%u", i);
+					state->hft_general_material_mra_image_boxes[i] = kui_image_box_control_create(state->kui_state, name, (vec2i){imagebox_size, imagebox_size});
+					string_free(name);
+					KASSERT(kui_system_control_add_child(kui_state, state->hft_general_content_container, state->hft_general_material_mra_image_boxes[i]));
+					kui_control_position_set(kui_state, state->hft_general_material_mra_image_boxes[i], (vec3){338, i * (imagebox_size + imagebox_padding), 0});
+				}
+			}
+
+			kui_scrollable_set_content_size(state->kui_state, state->hft_general_scrollable_control, state->hf_terrain_window_width, (imagebox_size + imagebox_padding) * HF_TERRAIN_MAX_MATERIALS);
+		}
+
+		// Paint sub-mode
 		{
 
 			// Some reasonable defaults.
@@ -598,15 +665,16 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 
 			state->hft_mode_paint_checkbox = kui_checkbox_control_create(kui_state, "hft_mode_paint_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Paint");
 			KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_paint_checkbox));
-			kui_control_position_set(kui_state, state->hft_mode_paint_checkbox, (vec3){5, 50, 0});
+			kui_control_position_set(kui_state, state->hft_mode_paint_checkbox, (vec3){90, 50, 0});
 			kui_control_set_user_data(kui_state, state->hft_mode_paint_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_checkbox_set_on_checked(kui_state, state->hft_mode_paint_checkbox, hf_terrain_checkbox_check_changed);
-			kui_checkbox_set_checked(kui_state, state->hft_mode_paint_checkbox, true);
 
 			// Content pane
 			state->hft_mode_paint_content = kui_base_control_create(kui_state, "hft_mode_paint_content", KUI_CONTROL_TYPE_BASE);
 			KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_paint_content));
 			kui_control_position_set(kui_state, state->hft_mode_paint_content, (vec3){5, 90, 0});
+			kui_control_set_is_active(kui_state, state->hft_mode_paint_content, false);
+			kui_control_set_is_visible(kui_state, state->hft_mode_paint_content, false);
 
 			state->hft_paint_brush_diameter_label = kui_label_control_create(kui_state, "hft_paint_brush_diameter_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Diameter");
 			KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_paint_content, state->hft_paint_brush_diameter_label));
@@ -662,9 +730,9 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			state->hft_elevation_diameter = 5.0f;
 			state->hft_elevation_set_height = false;
 
-			state->hft_mode_elevation_checkbox = kui_checkbox_control_create(kui_state, "hft_mode_elevation_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Elevation");
+			state->hft_mode_elevation_checkbox = kui_checkbox_control_create(kui_state, "hft_mode_elevation_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Elev.");
 			KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_elevation_checkbox));
-			kui_control_position_set(kui_state, state->hft_mode_elevation_checkbox, (vec3){105, 50, 0});
+			kui_control_position_set(kui_state, state->hft_mode_elevation_checkbox, (vec3){190, 50, 0});
 			kui_control_set_user_data(kui_state, state->hft_mode_elevation_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_checkbox_set_on_checked(kui_state, state->hft_mode_elevation_checkbox, hf_terrain_checkbox_check_changed);
 
@@ -713,7 +781,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 		{
 			state->hft_mode_chunk_checkbox = kui_checkbox_control_create(kui_state, "hft_mode_chunk_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Chunk");
 			KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_chunk_checkbox));
-			kui_control_position_set(kui_state, state->hft_mode_chunk_checkbox, (vec3){250, 50, 0});
+			kui_control_position_set(kui_state, state->hft_mode_chunk_checkbox, (vec3){280, 50, 0});
 			kui_control_set_user_data(kui_state, state->hft_mode_chunk_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_checkbox_set_on_checked(kui_state, state->hft_mode_chunk_checkbox, hf_terrain_checkbox_check_changed);
 
@@ -728,7 +796,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 		{
 			state->hft_mode_remove_checkbox = kui_checkbox_control_create(kui_state, "hft_mode_remove_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Remove");
 			KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_remove_checkbox));
-			kui_control_position_set(kui_state, state->hft_mode_remove_checkbox, (vec3){365, 50, 0});
+			kui_control_position_set(kui_state, state->hft_mode_remove_checkbox, (vec3){400, 50, 0});
 			kui_control_set_user_data(kui_state, state->hft_mode_remove_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_checkbox_set_on_checked(kui_state, state->hft_mode_remove_checkbox, hf_terrain_checkbox_check_changed);
 
@@ -808,6 +876,28 @@ b8 editor_open(struct editor_state* state, kname scene_name, kname scene_package
 	kui_textbox_f32_set(state->kui_state, state->scene_fog_colour_g_textbox, fog_colour.g);
 	kui_textbox_f32_set(state->kui_state, state->scene_fog_colour_b_textbox, fog_colour.b);
 	kui_textbox_f32_set(state->kui_state, state->scene_fog_colour_a_textbox, fog_colour.a);
+
+	// Setup terrain material controls.
+	u8 material_count = 0;
+	hf_terrain_material_data* materials = kscene_get_hf_terrain_materials(state->edit_scene, &material_count);
+	for (u8 i = 0; i < HF_TERRAIN_MAX_MATERIALS; ++i) {
+		// TODO: Load in material name once stored in the terrain format.
+		{
+			kname asset_name = i < material_count ? materials[i].albedo_asset_name : kname_create(DEFAULT_TEXTURE_NAME);
+			kname package_name = i < material_count ? materials[i].albedo_asset_package_name : INVALID_KNAME;
+			kui_image_box_control_texture_set_by_name(state->kui_state, state->hft_general_material_albedo_image_boxes[i], asset_name, package_name);
+		}
+		{
+			kname asset_name = i < material_count ? materials[i].normal_asset_name : kname_create(DEFAULT_TEXTURE_NAME);
+			kname package_name = i < material_count ? materials[i].normal_asset_package_name : INVALID_KNAME;
+			kui_image_box_control_texture_set_by_name(state->kui_state, state->hft_general_material_normal_image_boxes[i], asset_name, package_name);
+		}
+		{
+			kname asset_name = i < material_count ? materials[i].mra_asset_name : kname_create(DEFAULT_TEXTURE_NAME);
+			kname package_name = i < material_count ? materials[i].mra_asset_package_name : INVALID_KNAME;
+			kui_image_box_control_texture_set_by_name(state->kui_state, state->hft_general_material_mra_image_boxes[i], asset_name, package_name);
+		}
+	}
 
 	// If opened successfully, change keymaps.
 	if (!input_keymap_pop()) {
@@ -1201,8 +1291,12 @@ void editor_on_window_resize(struct editor_state* state, const struct kwindow* w
 	// HACK: hardcoded offset.
 	f32 tree_bottom_offset = 420.0f;
 	kui_panel_set_height(state->kui_state, state->tree_inspector_bg_panel, window->height - tree_bottom_offset);
-
 	kui_scrollable_control_resize(state->kui_state, state->tree_scrollable_control, (vec2){state->tree_inspector_width, window->height - tree_bottom_offset - 50.0f});
+
+	// HACK: hardcoded offset.
+	f32 hf_terrain_bottom_offset = 200.0f;
+	kui_panel_set_height(state->kui_state, state->hf_terrain_bg_panel, window->height - hf_terrain_bottom_offset);
+	kui_scrollable_control_resize(state->kui_state, state->hft_general_scrollable_control, (vec2){state->hf_terrain_window_width, window->height - hf_terrain_bottom_offset - 200.0f});
 }
 
 void editor_setup_keymaps(struct editor_state* state) {
@@ -1809,6 +1903,8 @@ static b8 editor_on_mouse_move(u16 code, void* sender, void* listener_inst, even
 
 			// Vary action based on selected hf terrain sub-editor mode (i.e. paint vs elevation change).
 			switch (state->hft_edit_mode) {
+			case HF_TERRAIN_EDIT_MODE_GENERAL:
+				break;
 			case HF_TERRAIN_EDIT_MODE_PAINT:
 				break;
 			case HF_TERRAIN_EDIT_MODE_ELEVATION: {
@@ -2341,6 +2437,8 @@ static b8 editor_on_drag(u16 code, void* sender, void* listener_inst, event_cont
 
 				// Vary action based on selected hf terrain sub-editor mode (i.e. paint vs elevation change).
 				switch (state->hft_edit_mode) {
+				case HF_TERRAIN_EDIT_MODE_GENERAL:
+					break;
 				case HF_TERRAIN_EDIT_MODE_PAINT:
 					hf_terrain_paint(state, pos, normal, &block, &chunk);
 					break;
@@ -3060,12 +3158,14 @@ static void hf_terrain_checkbox_check_changed(struct kui_state* state, kui_contr
 	editor_state* edit_state = base->user_data;
 
 	static kui_control checkboxes[HF_TERRAIN_EDIT_MODE_COUNT] = {0};
+	checkboxes[HF_TERRAIN_EDIT_MODE_GENERAL] = edit_state->hft_mode_general_checkbox;
 	checkboxes[HF_TERRAIN_EDIT_MODE_PAINT] = edit_state->hft_mode_paint_checkbox;
 	checkboxes[HF_TERRAIN_EDIT_MODE_ELEVATION] = edit_state->hft_mode_elevation_checkbox;
 	checkboxes[HF_TERRAIN_EDIT_MODE_CHUNK] = edit_state->hft_mode_chunk_checkbox;
 	checkboxes[HF_TERRAIN_EDIT_MODE_REMOVE] = edit_state->hft_mode_remove_checkbox;
 
 	static kui_control content_controls[HF_TERRAIN_EDIT_MODE_COUNT] = {0};
+	content_controls[HF_TERRAIN_EDIT_MODE_GENERAL] = edit_state->hft_mode_general_content;
 	content_controls[HF_TERRAIN_EDIT_MODE_PAINT] = edit_state->hft_mode_paint_content;
 	content_controls[HF_TERRAIN_EDIT_MODE_ELEVATION] = edit_state->hft_mode_elevation_content;
 	content_controls[HF_TERRAIN_EDIT_MODE_CHUNK] = edit_state->hft_mode_chunk_content;
@@ -3085,6 +3185,9 @@ static void hf_terrain_checkbox_check_changed(struct kui_state* state, kui_contr
 
 	switch (edit_state->hft_edit_mode) {
 
+	case HF_TERRAIN_EDIT_MODE_GENERAL:
+		KTRACE("HF Terrain edit mode set to general.");
+		break;
 	case HF_TERRAIN_EDIT_MODE_PAINT:
 		KTRACE("HF Terrain edit mode set to paint.");
 		break;
