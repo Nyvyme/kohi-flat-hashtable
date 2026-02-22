@@ -5,16 +5,21 @@ The items in this list are not in any particular order. This list will be update
 ## 0.12.0 Release
 
 - [x] Heightfield terrains (perhaps replacement for old system).
-- [ ] Terrain materials (Special blended, simplified PBR)
+- [x] Terrain materials (Special blended, simplified PBR)
   - [x] Albedo maps
   - [x] Normal maps
-  - [ ] MRA maps
+  - [x] MRA maps
   - [ ] Emissive?
 - [ ] Terrain editor
+  - [ ] General properites editor (select global materials for terrain, etc.)
   - [x] Material painting
   - [ ] Elevation changes
   - [ ] Deletion of quads
   - [ ] Chunk editor, allows to assign 5 terrain materials unique per chunk.
+- [ ] Asset manifest
+  - [ ] Add asset type per entry, plus property bag "metadata".
+  - [ ] Query asset system by type, name, package, etc. or some combination of that.
+  - [ ] Update the manifest by importing assets via an "Assets" editor.
 
 - [ ] Heightfield water and materials
 - [ ] Bugfix: #264 Address window closing issue on i3wm.

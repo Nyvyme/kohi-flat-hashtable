@@ -4,14 +4,17 @@ references = [
 assets = [
 	{
 		name = "Shader.EditorGizmo"
+		type = "shader"
 		path = "assets/shaders/Shader.EditorGizmo.ksc"
 	}
 	{
 		name = "Shader.EditorGizmo_frag"
+		type = "text"
 		path = "assets/shaders/Shader.EditorGizmo_frag.glsl"
 	}
 	{
 		name = "Shader.EditorGizmo_vert"
+		type = "text"
 		path = "assets/shaders/Shader.EditorGizmo_vert.glsl"
 	}
 ]

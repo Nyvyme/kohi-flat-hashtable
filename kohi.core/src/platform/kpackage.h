@@ -1,10 +1,13 @@
 #pragma once
 
+#include "assets/kasset_types.h"
 #include "defines.h"
 #include "strings/kname.h"
 
 typedef struct asset_manifest_asset {
 	kname name;
+	kasset_type type;
+	// TODO: asset metadata
 	// TODO: If loaded from binary, this might be null?
 	const char* path;
 	const char* source_path;
