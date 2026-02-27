@@ -7,22 +7,22 @@
 
 // Static lookup table for kasset type strings.
 static const char* kasset_type_strs[KASSET_TYPE_MAX] = {
-	"Unknown",			  // KASSET_TYPE_UNKNOWN,
-	"Image",			  // KASSET_TYPE_IMAGE,
-	"Material",			  // KASSET_TYPE_MATERIAL,
-	"HeightfieldTerrain", // KASSET_TYPE_HEIGHTFIELD_TERRAIN,
-	"HeightmapTerrain",	  // KASSET_TYPE_HEIGHTMAP_TERRAIN,
-	"Reserved1",		  // KASSET_TYPE_RESERVED_1
-	"BitmapFont",		  // KASSET_TYPE_BITMAP_FONT,
-	"SystemFont",		  // KASSET_TYPE_SYSTEM_FONT,
-	"Text",				  // KASSET_TYPE_TEXT,
-	"Binary",			  // KASSET_TYPE_BINARY,
-	"Kson",				  // KASSET_TYPE_KSON,
-	"VoxelTerrain",		  // KASSET_TYPE_VOXEL_TERRAIN,
-	"Reserved2",		  // KASSET_TYPE_RESERVED_2,
-	"Audio",			  // KASSET_TYPE_AUDIO,
-	"Shader",			  // KASSET_TYPE_SHADER,
-	"Model"				  // KASSET_TYPE_MODEL,
+	"unknown",			  // KASSET_TYPE_UNKNOWN,
+	"image",			  // KASSET_TYPE_IMAGE,
+	"material",			  // KASSET_TYPE_MATERIAL,
+	"hf_terrain", // KASSET_TYPE_HEIGHTFIELD_TERRAIN,
+	"hm_terrain",	  // KASSET_TYPE_HEIGHTMAP_TERRAIN,
+	"reserved_1",		  // KASSET_TYPE_RESERVED_1
+	"bitmap_font",		  // KASSET_TYPE_BITMAP_FONT,
+	"system_font",		  // KASSET_TYPE_SYSTEM_FONT,
+	"text",				  // KASSET_TYPE_TEXT,
+	"binary",			  // KASSET_TYPE_BINARY,
+	"kson",				  // KASSET_TYPE_KSON,
+	"voxel_terrain",		  // KASSET_TYPE_VOXEL_TERRAIN,
+	"reserved_2",		  // KASSET_TYPE_RESERVED_2,
+	"audio",			  // KASSET_TYPE_AUDIO,
+	"shader",			  // KASSET_TYPE_SHADER,
+	"model"				  // KASSET_TYPE_MODEL,
 };
 
 // Ensure changes to asset types break this if it isn't also updated.
@@ -34,7 +34,7 @@ kasset_type kasset_type_from_string(const char* type_str) {
 			return (kasset_type)i;
 		}
 	}
-	KWARN("kasset_type_from_string: Unrecognized type '%s'. Returning unknown.");
+	KWARN("kasset_type_from_string: Unrecognized type '%s'. Returning unknown.", type_str);
 	return KASSET_TYPE_UNKNOWN;
 }
 

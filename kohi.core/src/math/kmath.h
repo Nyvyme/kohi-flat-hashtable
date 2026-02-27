@@ -75,6 +75,9 @@
 #define K_FLOAT_MAX 3.40282e+38F
 #define K_FLOAT_MIN -K_FLOAT_MAX
 
+// Used to test if a float is close to zero, specifically for sweep tests.
+#define SWEEP_EPSILON 1e-5f
+
 // ------------------------------------------
 // General math functions
 // ------------------------------------------
@@ -2872,12 +2875,32 @@ KINLINE obb aabb_to_obb(const aabb a, mat4 m) {
 	return out;
 }
 
-KINLINE kcapsule kcapsule_create(vec3 position, f32 radius, f32 height) {
-	kcapsule cap = {
-		.position = position,
-		.bottom = vec3_add(position, vec3_create(0, radius, 0)),
-		.top = vec3_add(position, vec3_create(0, height - radius, 0)),
-		.height = height,
-		.radius = radius};
-	return cap;
-}
+KAPI vec3 normal_from_triangle(const triangle* tri);
+
+KAPI vec3 closest_point_on_segment(vec3 a, vec3 b, vec3 pos);
+
+KAPI vec3 vec3_project_on_plane(vec3 pos, vec3 normal);
+
+KAPI vec3 closest_point_on_triangle(vec3 pos, const triangle* t);
+// Return whether point P is contained inside 3D region delimited by triangle T0,T1,T2 edges.
+KAPI b8 point_inside_triangle(vec3 p, const triangle* tri);
+// Return whether point P is contained inside 3D region delimited by parallelogram P0,P1,P2 edges.
+KAPI b8 point_inside_parallelogram(vec3 p, vec3 p0, vec3 p1, vec3 p2);
+// Return whether point P is contained inside a triangular prism A0,A1,A2-B0,B1,B2.
+KAPI b8 point_inside_triangular_prism(vec3 p, vec3 a0, vec3 a1, vec3 a2, vec3 b0, vec3 b1, vec3 b2);
+// Sweep sphere C,r with velocity Sv against plane N of triangle T0,T1,T2, ignoring edges.
+KAPI b8 sweep_sphere_triangle_plane(sweep_result* sweep, vec3 c, f32 r, vec3 v, vec3 t0, vec3 t1, vec3 t2, vec3 n);
+// Sweep sphere C,r with velocity V against plane N of parallelogram P0,P1,P2 ignoring edges.
+KAPI b8 sweep_sphere_parallelogram_plane(sweep_result* sweep, vec3 c, f32 r, vec3 v, vec3 p0, vec3 p1, vec3 p2, vec3 n);
+// Sweep point P with velocity V against sphere S,r.
+KAPI b8 sweep_point_sphere(sweep_result* sweep, vec3 p, vec3 v, vec3 s, f32 r, vec3 fallback_normal);
+// Sweep point P with velocity V against cylinder C0,C1,r, ignoring the endcaps.
+KAPI b8 sweep_point_uncapped_cylinder(sweep_result* sweep, vec3 p, vec3 v, vec3 c0, vec3 c1, f32 r, vec3 fallback_normal);
+
+// Sweep a capsule C0,C1,Cr with velocity Cv against the triangle T0,T1,T2.
+//   c0,c1      capsule line segment endpoints
+//   r          capsule radius
+//   v          capsule velocity
+//   t0,t1,t2   3 triangle vertices
+//   returns    whether the capsule and triangle intersect
+KAPI b8 sweep_capsule_triangle(sweep_result* s, vec3 c0, vec3 c1, f32 r, vec3 v, vec3 t0, vec3 t1, vec3 t2);

@@ -184,6 +184,14 @@ typedef union uvec3_u {
 					p;
 			};
 		};
+		struct {
+			union {
+				// Accessor for the first two elements.
+				vec2 vec2, xy;
+			};
+			// Accessor for the last two elements.
+			vec2 last2;
+		};
 	};
 } uvec3;
 
@@ -267,6 +275,22 @@ typedef union vec4_u {
 					/** @brief The fourth element. */
 					height;
 			};
+		};
+		struct {
+			union {
+				// Accessor for the first three elements.
+				vec3 vec3, xyz;
+			};
+			// Accessor for the last element.
+			f32 last;
+		};
+		struct {
+			union {
+				// Accessor for the first two elements.
+				vec2 vec2, xy;
+			};
+			// Accessor for the last two elements.
+			vec2 last2;
 		};
 	};
 } vec4;
@@ -668,9 +692,20 @@ typedef struct ksphere {
 } ksphere;
 
 typedef struct kcapsule {
-	vec3 position;
-	vec3 bottom;
 	vec3 top;
-	f32 radius;
+	// base
+	vec3 bottom;
 	f32 height;
+	f32 radius;
 } kcapsule;
+
+typedef struct sweep_result {
+	// Non-negative time of first contact.
+	f32 time;
+	// Non-negative penetration depth if objects start initially colliding.
+	f32 depth;
+	// Point of first contact. Only updated when contact occurs.
+	vec3 point;
+	// Unit-length collision normal. Only updated when contact occurs.
+	vec3 normal;
+} sweep_result;

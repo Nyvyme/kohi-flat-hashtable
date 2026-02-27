@@ -114,6 +114,7 @@ typedef struct editor_state {
 	kui_control mode_scene_button;
 	kui_control mode_tree_button;
 	kui_control mode_hf_terrain_button;
+	kui_control texture_browser_button;
 	kui_control view_label;
 	kui_control view_debug_checkbox;
 	kui_control view_bvh_checkbox;
@@ -219,6 +220,20 @@ typedef struct editor_state {
 	kui_control hft_elevation_set_height_checkbox;
 	kui_control hft_elevation_diameter_label;
 	kui_control hft_elevation_amount_label;
+
+	kui_control tex_browser_bg_panel;
+	vec2 tex_browser_window_size;
+	kui_control tex_browser_title;
+	vec2i tex_browser_min_size;
+	f32 tex_browser_right_col_x;
+	kui_control tex_browser_scrollable_control;
+	kui_control tex_browser_content_container;
+	u32 tex_browser_tex_count;
+	kui_control* tex_browser_image_boxes;
+	kui_control* tex_browser_labels;
+	f32 imagebox_size;
+	f32 imagebox_padding;
+	vec2 tex_tile_size;
 
 } editor_state;
 

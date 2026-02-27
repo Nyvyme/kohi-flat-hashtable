@@ -3,6 +3,8 @@
 #include <math.h>
 #include <stdlib.h>
 
+#include "debug/kassert.h"
+#include "logger.h"
 #include "math/math_types.h"
 #include "math/mtwister.h" // for 64-bit RNG
 
@@ -10,6 +12,9 @@ static b8 rand_seeded = false;
 static mtrand_state rng_u64 = {0}; // State for unsigned 64-bit RNG
 
 static void seed_randoms(void);
+
+#define VEC3_CHECK_NAN(v) \
+	KASSERT(isfinite(v.x) && isfinite(v.y) && isfinite(v.z))
 
 b8 quat_is_identity(quat q) {
 	for (u8 i = 0; i < 3; ++i) {
@@ -535,4 +540,457 @@ b8 ray_intersects_sphere(const ray* r, vec3 center, f32 radius, vec3* out_point,
 	}
 
 	return true;
+}
+
+vec3 normal_from_triangle(const triangle* tri) {
+	vec3 edge_0 = vec3_sub(tri->verts[1], tri->verts[0]);
+	vec3 edge_1 = vec3_sub(tri->verts[2], tri->verts[0]);
+
+	return vec3_normalized(
+		vec3_create(
+			edge_0.y * edge_1.z - edge_0.z * edge_1.y,
+			edge_0.z * edge_1.x - edge_0.x * edge_1.z,
+			edge_0.x * edge_1.y - edge_0.y * edge_1.x));
+}
+
+vec3 closest_point_on_segment(vec3 a, vec3 b, vec3 pos) {
+	vec3 line_ab = vec3_sub(b, a);
+	f32 t = vec3_dot(vec3_sub(pos, a), line_ab) / vec3_dot(line_ab, line_ab);
+	t = KCLAMP(t, 0.0f, 1.0f);
+	return vec3_add(a, vec3_mul_scalar(line_ab, t));
+}
+
+vec3 vec3_project_on_plane(vec3 pos, vec3 normal) {
+	return vec3_sub(pos, vec3_mul_scalar(normal, vec3_dot(pos, normal)));
+}
+
+vec3 closest_point_on_triangle(vec3 pos, const triangle* t) {
+	vec3 edge_0 = vec3_sub(t->verts[1], t->verts[0]);
+	vec3 edge_1 = vec3_sub(t->verts[2], t->verts[0]);
+	vec3 ap = vec3_sub(pos, t->verts[0]);
+
+	f32 d1 = vec3_dot(edge_0, ap);
+	f32 d2 = vec3_dot(edge_1, ap);
+	if (d1 <= 0.0f && d2 <= 0.0f) {
+		return t->verts[0];
+	}
+
+	vec3 bp = vec3_sub(pos, t->verts[1]);
+	f32 d3 = vec3_dot(edge_0, bp);
+	f32 d4 = vec3_dot(edge_1, bp);
+	if (d3 >= 0.0f && d4 <= d3) {
+		return t->verts[1];
+	}
+
+	f32 vc = d1 * d4 - d3 * d2;
+	if (vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f) {
+		f32 v = d1 / (d1 - d3);
+		return vec3_add(t->verts[0], vec3_mul_scalar(edge_0, v));
+	}
+
+	vec3 cp = vec3_sub(pos, t->verts[2]);
+	f32 d5 = vec3_dot(edge_0, cp);
+	f32 d6 = vec3_dot(edge_1, cp);
+	if (d6 >= 0.0f && d5 <= d6) {
+		return t->verts[2];
+	}
+
+	f32 vb = d5 * d2 - d1 * d6;
+	if (vb <= 0.0f && d2 >= 0.0f && d6 <= 0.0f) {
+		f32 w = d2 / (d2 - d6);
+		return vec3_add(t->verts[0], vec3_mul_scalar(edge_1, w));
+	}
+
+	f32 va = d3 * d6 - d5 * d4;
+	f32 denom = 1.0f / (va + vb + vc);
+	f32 v = vb * denom;
+	f32 w = vc * denom;
+
+	return vec3_add(t->verts[0], vec3_add(vec3_mul_scalar(edge_0, v), vec3_mul_scalar(edge_1, w)));
+}
+
+// Return whether point P is contained inside 3D region delimited by triangle T0,T1,T2 edges.
+b8 point_inside_triangle(vec3 p, const triangle* tri) {
+	// Real-Time Collision Detection: 3.4: Barycentric Coordinates (pages 46-52).
+	//
+	// The book also has a subsection dedicated to point inside triangle tests:
+	// Real-Time Collision Detection: 5.4.2: Testing Point in Triangle (pages 203-206).
+	// But those tests only work for CCW triangles. This seems to work for either orientation.
+	vec3 t0 = vec3_sub(tri->verts[1], tri->verts[0]);
+	vec3 t1 = vec3_sub(tri->verts[2], tri->verts[0]);
+	vec3 tp = vec3_sub(p, tri->verts[0]);
+	f32 t0_dot_t0 = vec3_dot(t0, t0);
+	f32 t0_dot_t1 = vec3_dot(t0, t1);
+	f32 t1_dot_t1 = vec3_dot(t1, t1);
+	f32 tp_dot_t0 = vec3_dot(tp, t0);
+	f32 tp_dot_t1 = vec3_dot(tp, t1);
+	f32 denom = t0_dot_t0 * t1_dot_t1 - t0_dot_t1 * t0_dot_t1;
+
+	// Normally I would have to divide vd,wd by denom to get v,w. But divisions are
+	// expensive and cause troubles around 0. If denom isn't negative then we don't
+	// ever need to divide. If in the future it does turn out denom can be negative
+	// then we can always multiply by denom instead of dividing to keep sign the same.
+	f32 vd = t1_dot_t1 * tp_dot_t0 - t0_dot_t1 * tp_dot_t1;
+	f32 wd = t0_dot_t0 * tp_dot_t1 - t0_dot_t1 * tp_dot_t0;
+	return vd >= 0 && wd >= 0 && vd + wd <= denom;
+}
+
+// Return whether point P is contained inside 3D region delimited by parallelogram P0,P1,P2 edges.
+b8 point_inside_parallelogram(vec3 p, vec3 p0, vec3 p1, vec3 p2) {
+	// There may be a better way.
+	// https://math.stackexchange.com/questions/4381852/point-in-parallelogram-in-3d-space
+	vec3 p3 = vec3_add(p2, vec3_sub(p1, p0));
+	triangle t0, t1;
+	t0.verts[0] = p0;
+	t0.verts[1] = p1;
+	t0.verts[2] = p2;
+
+	t1.verts[0] = p1;
+	t1.verts[1] = p3;
+	t1.verts[2] = p2;
+	return point_inside_triangle(p, &t0) || point_inside_triangle(p, &t1);
+}
+
+// Return whether point P is contained inside a triangular prism A0,A1,A2-B0,B1,B2.
+b8 point_inside_triangular_prism(vec3 p, vec3 a0, vec3 a1, vec3 a2, vec3 b0, vec3 b1, vec3 b2) {
+	vec3 faces[5][3] = {{a0, a1, a2}, {b0, b2, b1}, {a0, b0, a1}, {a1, b1, a2}, {a2, b2, a0}};
+	f32 sgn = 0;
+	for (u32 i = 0; i < 5; i++) {
+		vec3 p0 = faces[i][0];
+		vec3 p1 = faces[i][1];
+		vec3 p2 = faces[i][2];
+
+		// Check which side of plane point is in. If it's always on the same side, it's colliding.
+		vec3 p01 = vec3_sub(p1, p0);
+		vec3 p02 = vec3_sub(p2, p0);
+		vec3 n = vec3_cross(p01, p02);
+		VEC3_CHECK_NAN(n);
+		f32 d = vec3_dot(n, vec3_sub(p, p0));
+		if (i == 0) {
+			sgn = d;
+		}
+		if (sgn * d <= 0) {
+			return false;
+		}
+	}
+	return true;
+}
+
+// Sweep sphere C,r with velocity Sv against plane N of triangle T0,T1,T2, ignoring edges.
+b8 sweep_sphere_triangle_plane(sweep_result* sweep, vec3 c, f32 r, vec3 v, vec3 t0, vec3 t1, vec3 t2, vec3 n) {
+	// Real-Time Collision Detection 5.5.3: Intersecting Moving Sphere Against Plane (pages 219-223).
+	f32 t;
+	f32 d = vec3_dot(n, vec3_sub(c, t0));
+	f32 pen = r - d;
+	if (pen > 0) {
+		t = 0; // Sphere already starts coliding with triangle plane.
+	} else {
+		// Sphere isn't immediately colliding with the plane. Check if it's moving away.
+		f32 denom = vec3_dot(n, v);
+		if (denom >= 0) {
+			return false; // Sphere is moving away from plane.
+		}
+
+		// Sphere will collide with plane at some point.
+		t = (r - d) / denom;
+		pen = 0;
+	}
+
+	// If sphere misses entire triangle plane, then it definitely misses the triangle too.
+	if (t >= sweep->time) {
+		return false;
+	}
+
+	// Is the plane collision point inside the triangle?
+	// Real-Time Collision Detection: 5.4.2: Testing Point in Triangle (pg 203-206).
+	/* vec3 collision = vec3_add(c, vec3_sub(vec3_mul_scalar(v, t), vec3_mul_scalar(n, r))); */
+	vec3 collision = vec3_sub(vec3_add(c, vec3_mul_scalar(v, t)), vec3_mul_scalar(n, r));
+	triangle tri;
+	tri.verts[0] = t0;
+	tri.verts[1] = t1;
+	tri.verts[2] = t2;
+	if (!point_inside_triangle(collision, &tri)) {
+		return false;
+	}
+
+	// Plane collision point is inside the triangle. So the sphere collides with the triangle.
+	sweep->time = t;
+	sweep->depth = pen;
+	sweep->point = collision;
+	sweep->normal = n;
+	VEC3_CHECK_NAN(sweep->normal);
+	VEC3_CHECK_NAN(sweep->point);
+	return true;
+}
+
+// Sweep sphere C,r with velocity V against plane N of parallelogram P0,P1,P2 ignoring edges.
+b8 sweep_sphere_parallelogram_plane(sweep_result* sweep, vec3 c, f32 r, vec3 v, vec3 p0, vec3 p1, vec3 p2, vec3 n) {
+	// Real-Time Collision Detection 5.5.3: Intersecting Moving Sphere Against Plane (pages 219-223).
+	f32 t;
+	/* f32 d = vec3_dot(c, vec3_sub(n, p0)); */
+	f32 d = vec3_dot(n, vec3_sub(c, p0));
+	f32 pen = r - d;
+	if (pen > 0) {
+		t = 0; // Sphere already starts coliding with the quad plane.
+	} else {
+		// Sphere isn't immediately colliding with the plane. Check if it's moving away.
+		f32 denom = vec3_dot(n, v);
+		if (denom >= 0) {
+			return false; // Sphere is moving away from plane.
+		}
+
+		// Sphere will collide with plane at some point.
+		t = (r - d) / denom;
+		pen = 0;
+	}
+
+	// If sphere misses entire quad plane, then it definitely misses the quad too.
+	if (t >= sweep->time) {
+		return false;
+	}
+
+	// Is the plane collision point inside the quad?
+	// Real-Time Collision Detection: 5.4.2: Testing Point in Triangle (pages 203-206).
+	/* vec3 collision = vec3_add(c, vec3_sub(vec3_mul_scalar(v, t), vec3_mul_scalar(n, r))); */
+	vec3 collision = vec3_sub(vec3_add(c, vec3_mul_scalar(v, t)), vec3_mul_scalar(n, r));
+	if (!point_inside_parallelogram(collision, p0, p1, p2)) {
+		return false;
+	}
+
+	// Plane collision point is inside the quad. So the sphere collides with the quad.
+	sweep->time = t;
+	sweep->depth = pen;
+	sweep->point = collision;
+	sweep->normal = n;
+	VEC3_CHECK_NAN(sweep->normal);
+	VEC3_CHECK_NAN(sweep->point);
+	return true;
+}
+
+// Sweep point P with velocity V against sphere S,r.
+b8 sweep_point_sphere(sweep_result* sweep, vec3 p, vec3 v, vec3 s, f32 r, vec3 fallback_normal) {
+	// Real-Time Collision Detection 5.3.2: Intersecting Ray or Segment Against Sphere (pages 177-179).
+
+	// Set up quadratic equation.
+	vec3 d = vec3_sub(p, s);
+	f32 b = vec3_dot(d, v);
+	f32 c = vec3_dot(d, d) - r * r;
+	if (c > 0 && b > 0) {
+		return false; // Point starts outside (c > 0) and moves away from sphere (b > 0).
+	}
+	f32 a = vec3_dot(v, v);
+	f32 discr = b * b - a * c;
+	if (discr < 0) {
+		return false; // Point misses sphere.
+	}
+
+	// Point hits sphere. Compute time of first impact.
+	f32 t = (-b - ksqrt(discr)) / a;
+	if (t >= sweep->time) {
+		return false;
+	}
+
+	// The sphere is the first thing the point hits so far.
+	t = KMAX(t, 0);
+	vec3 collision = vec3_add(p, vec3_mul_scalar(v, t));
+	vec3 vec = vec3_sub(collision, s);
+	f32 len = vec3_length(vec);
+	sweep->time = t;
+	sweep->depth = t > 0 ? 0 : r - len;
+	sweep->point = collision;
+	sweep->normal = (len >= SWEEP_EPSILON) ? vec3_div_scalar(vec, len) : fallback_normal;
+	VEC3_CHECK_NAN(sweep->normal);
+	VEC3_CHECK_NAN(sweep->point);
+	return true;
+}
+
+// Sweep point P with velocity V against cylinder C0,C1,r, ignoring the endcaps.
+b8 sweep_point_uncapped_cylinder(sweep_result* sweep, vec3 p, vec3 v, vec3 c0, vec3 c1, f32 r, vec3 fallback_normal) {
+	// Real-Time Collision Detection 5.3.7: Intersecting Ray or Segment Against Cylinder (pages 194-198).
+
+	// Test if swept point is fully outside of either endcap.
+	vec3 n = vec3_sub(c1, c0);
+	vec3 d = vec3_sub(p, c0);
+	f32 dn = vec3_dot(d, n);
+	f32 vn = vec3_dot(v, n);
+	f32 nn = vec3_dot(n, n);
+	if (dn < 0 && dn + vn < 0) {
+		return false; // Fully outside c0 end of cylinder.
+	}
+	if (dn > nn && dn + vn > nn) {
+		return false; // Fully outside c1 end of cylinder.
+	}
+
+	// Set up quadratic equations and check if sweep direction is parallel to cylinder.
+	f32 t;
+	f32 vv = vec3_dot(v, v);
+	f32 dv = vec3_dot(d, v);
+	f32 dd = vec3_dot(d, d);
+	f32 a = nn * vv - vn * vn;
+	f32 c = nn * (dd - r * r) - dn * dn;
+	if (kabs(a) < SWEEP_EPSILON) {
+		// Sweep direction is parallel to cylinder.
+		if (c > 0) {
+			return false; // Point starts outside of cylinder, so it never collides.
+		}
+		if (dn < 0) {
+			return false; // Point starts outside of c0 endcap.
+		}
+		if (dn > nn) {
+			return false; // Point starts outside of c1 endcap.
+		}
+		t = 0;
+	} else {
+		// Sweep direction is not parallel to cylinder. Solve for time of first contact.
+		f32 b = nn * dv - vn * dn;
+		f32 discr = b * b - a * c;
+		if (discr < 0) {
+			return false; // Sweep misses cylinder.
+		}
+		t = (-b - ksqrt(discr)) / a;
+	}
+
+	// Check if the sweep missed, or if it hits but another collision happens sooner.
+	if (t < 0 || t >= sweep->time) {
+		return false;
+	}
+
+	// This is the first collision. Find the closest point on the center of the cylinder.
+	vec3 collision = vec3_add(p, vec3_mul_scalar(v, t));
+	vec3 center;
+	if (nn < SWEEP_EPSILON) {
+		center = c0; // The cylinder is actually a circle.
+	} else {
+		f32 proj = vec3_dot(vec3_sub(collision, c0), n) / nn;
+		center = vec3_add(c0, vec3_mul_scalar(n, proj));
+	}
+
+	// Update collision time, depth, and normal.
+	vec3 vec = vec3_sub(collision, center);
+	f32 len = vec3_length(vec);
+	f32 depth = r - len;
+	sweep->time = t;
+	sweep->depth = t > 0 ? 0 : depth;
+	sweep->point = collision;
+	sweep->normal = (len >= SWEEP_EPSILON) ? vec3_div_scalar(vec, len) : fallback_normal;
+	VEC3_CHECK_NAN(sweep->normal);
+	VEC3_CHECK_NAN(sweep->point);
+	return true;
+}
+
+// Sweep a capsule C0,C1,Cr with velocity Cv against the triangle T0,T1,T2.
+//   c0,c1      capsule line segment endpoints
+//   r          capsule radius
+//   v          capsule velocity
+//   t0,t1,t2   3 triangle vertices
+//   returns    whether the capsule and triangle intersect
+b8 sweep_capsule_triangle(sweep_result* s, vec3 c0, vec3 c1, f32 r, vec3 v, vec3 t0, vec3 t1, vec3 t2) {
+	// Compute triangle plane equation.
+	vec3 t01 = vec3_sub(t1, t0);
+	vec3 t02 = vec3_sub(t2, t0);
+	vec3 normal = vec3_normalized(vec3_cross(t01, t02));
+
+	// Extrude triangle along capsule direction.
+	vec3 c01 = vec3_sub(c1, c0);
+	vec3 a0 = t0;
+	vec3 a1 = t1;
+	vec3 a2 = t2;
+	vec3 b0 = vec3_sub(t0, c01);
+	vec3 b1 = vec3_sub(t1, c01);
+	vec3 b2 = vec3_sub(t2, c01);
+
+	// Test for initial collision with the extruded triangle prism.
+	if (point_inside_triangular_prism(c0, a0, a1, a2, b0, b1, b2)) {
+		// Capsule starts off penetrating triangle. Push it out from the triangle plane.
+		f32 d0 = vec3_dot(normal, vec3_sub(c0, t0));
+		f32 d1 = vec3_dot(normal, vec3_sub(c1, t0));
+		f32 d = kabs(d0) <= kabs(d1) ? d0 : d1;
+		vec3 n = d >= 0 ? normal : vec3_mul_scalar(normal, -1.0f);
+		s->time = 0;
+		s->depth = kabs(d) + r;
+		s->normal = n;
+		s->point = vec3_add(c0, vec3_mul_scalar(normal, d0));
+
+		VEC3_CHECK_NAN(s->normal);
+		VEC3_CHECK_NAN(s->point);
+		return true;
+	}
+
+	// Decompose capsule triangle sweep into: 2 sphere-triangle + 3 sphere-parallelogram + 9 point-cylinder + 6 point-sphere sweeps.
+	b8 hit = false;
+	vec3 triangles[2][3] = {{a0, a1, a2}, {b0, b1, b2}};
+	vec3 parallelograms[3][3] = {{a0, a1, b0}, {a1, a2, b1}, {a2, a0, b2}};
+	vec3 cylinders[9][2] = {{a0, a1}, {a1, a2}, {a2, a0}, {b0, b1}, {b1, b2}, {b2, b0}, {a0, b0}, {a1, b1}, {a2, b2}};
+	vec3 spheres[6] = {a0, a1, a2, b0, b1, b2};
+
+	// Do sphere-triangle sweeps.
+	vec3 triangle_normals[2];
+	for (u32 i = 0; i < 2; i++) {
+		vec3 p0 = triangles[i][0];
+		vec3 p1 = triangles[i][1];
+		vec3 p2 = triangles[i][2];
+
+		// Compute triangle plane normal.
+		vec3 n = normal;
+		if (vec3_dot(n, vec3_sub(c0, p0)) < 0) {
+			n = vec3_mul_scalar(n, -1.0f); // Orient towards sphere.
+		}
+		triangle_normals[i] = n;
+		VEC3_CHECK_NAN(n);
+
+		// Test for triangle-plane sphere intersection.
+		hit = hit || sweep_sphere_triangle_plane(s, c0, r, v, p0, p1, p2, n);
+	}
+
+	// Do sphere-parallelogram sweeps.
+	vec3 parallelogram_normals[3];
+	for (u32 i = 0; i < 3; i++) {
+		vec3 p0 = parallelograms[i][0];
+		vec3 p1 = parallelograms[i][1];
+		vec3 p2 = parallelograms[i][2];
+
+		// Check if quad is degenerate. Happens when triangle edge completely parallel to capsule.
+		vec3 p01 = vec3_sub(p1, p0);
+		vec3 p02 = vec3_sub(p2, p0);
+		vec3 c = vec3_cross(p01, p02);
+		f32 len = vec3_length(c);
+		if (len > SWEEP_EPSILON) {
+			// Compute quad plane equation.
+			vec3 n = vec3_div_scalar(c, len);
+			if (vec3_dot(n, vec3_sub(c0, p0)) < 0) {
+				n = vec3_mul_scalar(n, -1.0f); // Orient towards sphere.
+			}
+			parallelogram_normals[i] = n;
+			VEC3_CHECK_NAN(n);
+
+			// Do the sweep test.
+			hit = hit || sweep_sphere_parallelogram_plane(s, c0, r, v, p0, p1, p2, n);
+		} else {
+			parallelogram_normals[i] = triangle_normals[0];
+		}
+	}
+
+	// Do point-cylinder sweeps.
+	for (u32 i = 0; i < 9; i++) {
+		vec3 p0 = cylinders[i][0];
+		vec3 p1 = cylinders[i][1];
+		vec3 n;
+		if (i < 6) {
+			n = triangle_normals[i / 3];
+		} else {
+			n = parallelogram_normals[i - 6];
+		}
+		VEC3_CHECK_NAN(n);
+		hit = hit || sweep_point_uncapped_cylinder(s, c0, v, p0, p1, r, n);
+	}
+
+	// Do point-sphere sweeps.
+	for (u32 i = 0; i < 6; i++) {
+		vec3 c = spheres[i];
+		vec3 n = triangle_normals[i / 3];
+		VEC3_CHECK_NAN(n);
+		hit = hit || sweep_point_sphere(s, c0, v, c, r, n);
+	}
+
+	return hit;
 }

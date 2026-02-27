@@ -123,6 +123,7 @@ kname* kpackage_asset_names_by_type(const kpackage* package, kasset_type type, u
 			asset_entry* entry = &package->internal_data->entries[j];
 			if (entry->type == type) {
 				results[idx] = entry->name;
+				idx++;
 			}
 		}
 	}

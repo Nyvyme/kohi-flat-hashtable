@@ -1586,7 +1586,7 @@ static b8 raycast_hits_sphere(const char* type_str, ktransform transform, f32 ra
 
 	vec3 point;
 	f32 dist;
-	KDEBUG("Ray hits sphere test. radius=%f", radius);
+	/* KDEBUG("Ray hits sphere test. radius=%f", radius); */
 	if (ray_intersects_sphere(r, pos, radius, &point, &dist)) {
 		if (out_hit) {
 			out_hit->type = RAYCAST_HIT_TYPE_SURFACE;
@@ -1595,11 +1595,11 @@ static b8 raycast_hits_sphere(const char* type_str, ktransform transform, f32 ra
 			out_hit->normal = vec3_normalized(vec3_sub(point, pos));
 		}
 
-		KDEBUG("More specific %s hit info acquired. Using it.", type_str);
+		/* KDEBUG("More specific %s hit info acquired. Using it.", type_str); */
 		return true;
 	} else {
 		// If it doesn't hit, disqualify it.
-		KDEBUG("Hit the BVH node, but not the contained %s sphere. Hit does not count.", type_str);
+		/* KDEBUG("Hit the BVH node, but not the contained %s sphere. Hit does not count.", type_str); */
 		return false;
 	}
 }
@@ -1623,20 +1623,20 @@ static b8 on_raycast_hit(bvh_userdata user, bvh_id id, const ray* r, f32 min, f3
 
 		// Within the model, check to see if the raycast hits it as well.
 		if (kmodel_ray_intersects(engine_systems_get()->model_system, typed->model, r, world, out_hit)) {
-			KDEBUG("More specific model hit info acquired (name='%s'). Using it.", name);
+			/* KDEBUG("More specific model hit info acquired (name='%s'). Using it.", name); */
 			return true;
 		} else {
 			// If it doesn't hit, disqualify it.
-			KDEBUG("Hit the BVH node (name='%s'), but not the contained mesh. Hit does not count.", name);
+			/* KDEBUG("Hit the BVH node (name='%s'), but not the contained mesh. Hit does not count.", name); */
 			return false;
 		}
 	} break;
 	case KENTITY_TYPE_HEIGHTMAP_TERRAIN:
-		KINFO("Hit a heightmap terrain entity named '%s'", name);
+		/* KINFO("Hit a heightmap terrain entity named '%s'", name); */
 
 		return false;
 	case KENTITY_TYPE_WATER_PLANE: {
-		KINFO("Hit a water plane entity named '%s'", name);
+		/* KINFO("Hit a water plane entity named '%s'", name); */
 
 		mat4 world_inv = mat4_inverse(world);
 
@@ -1663,7 +1663,7 @@ static b8 on_raycast_hit(bvh_userdata user, bvh_id id, const ray* r, f32 min, f3
 				out_hit->normal = normal;
 			}
 
-			KDEBUG("More specific water plane hit info acquired. Using it.");
+			/* KDEBUG("More specific water plane hit info acquired. Using it."); */
 			return true;
 		}
 	} break;
@@ -1707,7 +1707,7 @@ static b8 on_raycast_hit(bvh_userdata user, bvh_id id, const ray* r, f32 min, f3
 	} break;
 	default:
 	case KENTITY_TYPE_NONE:
-		KINFO("Base node found. No further tests needed.");
+		/* KINFO("Base node found. No further tests needed."); */
 		// This will allow the hit to be counted.
 		out_hit->type = RAYCAST_HIT_TYPE_BVH_AABB_BASE_NODE;
 		return true;

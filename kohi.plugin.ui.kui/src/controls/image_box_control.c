@@ -94,7 +94,8 @@ b8 kui_image_box_control_texture_set_by_name(kui_state* state, kui_control self,
 	KASSERT(base);
 	kui_image_box_control* typed_data = (kui_image_box_control*)base;
 
-	ktexture t = texture_acquire_from_package(image_asset_name, image_asset_package_name, KNULL, KNULL);
+	// HACK: trying sync
+	ktexture t = texture_acquire_from_package_sync(image_asset_name, image_asset_package_name);
 	if (t != INVALID_KTEXTURE) {
 		typed_data->texture = t;
 		return true;

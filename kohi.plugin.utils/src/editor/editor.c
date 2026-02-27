@@ -99,6 +99,7 @@ static b8 mode_scene_button_clicked(struct kui_state* state, kui_control self, s
 static b8 mode_entity_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
 static b8 mode_tree_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
 static b8 mode_hf_terrain_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
+static b8 texture_browser_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
 
 static void show_bvh_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event);
 static void show_grid_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event);
@@ -261,6 +262,16 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 			kui_control_position_set(kui_state, state->mode_hf_terrain_button, (vec3){125, 150, 0});
 			kui_control_set_user_data(kui_state, state->mode_hf_terrain_button, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 			kui_control_set_on_click(kui_state, state->mode_hf_terrain_button, mode_hf_terrain_button_clicked);
+		}
+
+		// Texture browser button.
+		{
+			state->texture_browser_button = kui_button_control_create_with_text(kui_state, "texture_browser_button", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Tex B");
+			KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->texture_browser_button));
+			kui_button_control_width_set(kui_state, state->texture_browser_button, 115);
+			kui_control_position_set(kui_state, state->texture_browser_button, (vec3){5, 200, 0});
+			kui_control_set_user_data(kui_state, state->texture_browser_button, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+			kui_control_set_on_click(kui_state, state->texture_browser_button, texture_browser_button_clicked);
 		}
 
 		// Toggle options label
@@ -809,6 +820,96 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 		}
 	}
 
+	// Texture browser
+	{
+		/* kui_control tex_browser_bg_panel;
+		kui_control tex_browser_title;
+		vec2i tex_browser_min_size;
+		f32 tex_browser_right_col_x;
+		kui_control tex_browser_scrollable_control;
+		kui_control tex_browser_content_container;
+		u32 tex_browser_tex_count;
+		kui_control* tex_browser_image_boxes;
+		kui_control* tex_browser_labels; */
+
+		// Texture listing
+		state->imagebox_size = 64;
+		state->imagebox_padding = 5.0f;
+
+		// Texture browser background/window
+		state->tex_browser_window_size = vec2_create(600, 300);
+		state->tex_browser_right_col_x = 200.0f;
+		state->tex_browser_bg_panel = kui_panel_control_create(kui_state, "tex_browser_bg_panel", state->tex_browser_window_size, (vec4){0, 0, 0, 0.8f});
+		KASSERT(kui_system_control_add_child(kui_state, state->editor_root, state->tex_browser_bg_panel));
+		kui_control_position_set(kui_state, state->tex_browser_bg_panel, (vec3){300, 50, 0});
+
+		// Window Label
+		state->tex_browser_title = kui_label_control_create(kui_state, "tex_browser_title", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Texture Browser");
+		KASSERT(kui_system_control_add_child(kui_state, state->tex_browser_bg_panel, state->tex_browser_title));
+		kui_control_position_set(kui_state, state->tex_browser_title, (vec3){10, -5.0f, 0});
+
+		// Scrollable content control
+		f32 scrollable_width = state->tex_browser_window_size.x - state->tex_browser_right_col_x;
+		state->tex_browser_scrollable_control = kui_scrollable_control_create(kui_state, "tex_browser_scrollable_control", (vec2){scrollable_width, 100}, false, true);
+		KASSERT(kui_system_control_add_child(kui_state, state->tex_browser_bg_panel, state->tex_browser_scrollable_control));
+		kui_control_position_set(kui_state, state->tex_browser_scrollable_control, (vec3){0, 50, 0});
+		kui_scrollable_control_resize(state->kui_state, state->tex_browser_scrollable_control, (vec2){scrollable_width, 250});
+
+		state->tex_browser_content_container = kui_scrollable_control_get_content_container(state->kui_state, state->tex_browser_scrollable_control);
+
+		state->tex_tile_size = vec2_create(
+			state->imagebox_size + state->imagebox_padding,
+			state->imagebox_size + state->imagebox_padding + state->font_size + state->imagebox_padding);
+
+		// Query for a list of textures.
+		kname* texture_names = asset_system_names_by_type(engine_systems_get()->asset_state, KASSET_TYPE_IMAGE, INVALID_KNAME, &state->tex_browser_tex_count);
+		state->tex_browser_image_boxes = KALLOC_TYPE_CARRAY(kui_control, state->tex_browser_tex_count);
+		state->tex_browser_labels = KALLOC_TYPE_CARRAY(kui_control, state->tex_browser_tex_count);
+
+		u32 x = 0;
+		u32 y = 0;
+
+		for (u32 i = 0; i < state->tex_browser_tex_count; ++i) {
+			// Image box
+			{
+				char* name = string_format("__texture_browser_image_box_%u__", i);
+				state->tex_browser_image_boxes[i] = kui_image_box_control_create(state->kui_state, name, (vec2i){state->imagebox_size, state->imagebox_size});
+				string_free(name);
+				KASSERT(kui_system_control_add_child(kui_state, state->tex_browser_content_container, state->tex_browser_image_boxes[i]));
+				if (!kui_image_box_control_texture_set_by_name(kui_state, state->tex_browser_image_boxes[i], texture_names[i], INVALID_KNAME)) {
+					KERROR("Image not loaded, ya dingus!");
+				}
+				// TODO: onclick select and show metadata
+				// TODO: doubleclick selects and returns if in "selection mode"
+			}
+			// Label
+			{
+				char* name = string_format("__texture_browser_image_label_%u__", i);
+				state->tex_browser_labels[i] = kui_label_control_create(state->kui_state, name, FONT_TYPE_SYSTEM, state->font_name, state->font_size, kname_string_get(texture_names[i]));
+				string_free(name);
+				KASSERT(kui_system_control_add_child(kui_state, state->tex_browser_content_container, state->tex_browser_labels[i]));
+			}
+
+			// positioning
+			b8 has_space = (state->tex_tile_size.x * (x + 1)) <= scrollable_width;
+			if (!has_space) {
+				x = 0;
+				y++;
+			}
+
+			vec3 pos = (vec3){state->tex_tile_size.x * x, state->tex_tile_size.y * y, 0};
+			kui_control_position_set(kui_state, state->tex_browser_image_boxes[i], pos);
+			kui_control_position_set(kui_state, state->tex_browser_labels[i], vec3_sub(pos, vec3_create(0, state->font_size + state->imagebox_padding, 0)));
+
+			if (has_space) {
+				++x;
+			}
+		}
+
+		f32 scrollable_height = state->tex_tile_size.y * (y + 1);
+
+		kui_scrollable_set_content_size(state->kui_state, state->tex_browser_scrollable_control, scrollable_width, scrollable_height);
+	}
 	state->is_running = true;
 
 	return true;
@@ -1298,6 +1399,34 @@ void editor_on_window_resize(struct editor_state* state, const struct kwindow* w
 	f32 hf_terrain_bottom_offset = 200.0f;
 	kui_panel_set_height(state->kui_state, state->hf_terrain_bg_panel, window->height - hf_terrain_bottom_offset);
 	kui_scrollable_control_resize(state->kui_state, state->hft_general_scrollable_control, (vec2){state->hf_terrain_window_width, window->height - hf_terrain_bottom_offset - 200.0f});
+
+	/* // texture browser.
+
+	u32 x = 0;
+	u32 y = 0;
+	f32 scrollable_width = state->tex_browser_window_size.x - state->tex_browser_right_col_x;
+
+	for (u32 i = 0; i < state->tex_browser_tex_count; ++i) {
+
+		// positioning
+		b8 has_space = (state->tex_tile_size.x * (x + 1)) <= scrollable_width;
+		if (!has_space) {
+			x = 0;
+			y++;
+		}
+
+		vec3 pos = (vec3){state->tex_tile_size.x * x, state->tex_tile_size.y * y, 0};
+		kui_control_position_set(state->kui_state, state->tex_browser_image_boxes[i], pos);
+		kui_control_position_set(state->kui_state, state->tex_browser_labels[i], vec3_sub(pos, vec3_create(0, state->font_size + state->imagebox_padding, 0)));
+
+		if (has_space) {
+			++x;
+		}
+	}
+
+	f32 scrollable_height = state->tex_tile_size.y * (y + 1);
+	kui_scrollable_set_content_size(state->kui_state, state->tex_browser_scrollable_control, scrollable_width, scrollable_height);
+	kui_scrollable_control_resize(state->kui_state, state->tex_browser_scrollable_control, (vec2){scrollable_width, 275}); */
 }
 
 void editor_setup_keymaps(struct editor_state* state) {
@@ -1815,6 +1944,18 @@ static b8 mode_hf_terrain_button_clicked(struct kui_state* state, kui_control se
 
 	if (edit_state->mode != EDITOR_MODE_HF_TERRAIN) {
 		editor_set_mode(edit_state, EDITOR_MODE_HF_TERRAIN);
+	}
+	// Don't allow the event to popagate.
+	return false;
+}
+
+static b8 texture_browser_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
+	KTRACE("Texture browser button clicked.");
+	kui_base_control* base = kui_system_get_base(state, self);
+	editor_state* edit_state = base->user_data;
+
+	if (edit_state->mode != EDITOR_MODE_HF_TERRAIN) {
+		/* editor_set_mode(edit_state, EDITOR_MODE_HF_TERRAIN); */
 	}
 	// Don't allow the event to popagate.
 	return false;

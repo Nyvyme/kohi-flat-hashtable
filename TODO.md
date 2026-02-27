@@ -13,6 +13,7 @@ The items in this list are not in any particular order. This list will be update
 - [ ] Terrain editor
   - [ ] General properites editor (select global materials for terrain, etc.)
   - [x] Material painting
+  - [ ] Colour painting (second map akin to splatmap to integrate extra bit of colour)
   - [ ] Elevation changes
   - [ ] Deletion of quads
   - [ ] Chunk editor, allows to assign 5 terrain materials unique per chunk.
