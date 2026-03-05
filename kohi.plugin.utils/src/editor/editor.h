@@ -66,6 +66,7 @@ typedef enum hf_terrain_elevation_edit_mode {
 } hf_terrain_elevation_edit_mode;
 
 typedef struct editor_state {
+	kname game_package_name;
 	// Editor camera
 	kcamera editor_camera;
 	f32 editor_camera_forward_move_speed;
@@ -228,6 +229,8 @@ typedef struct editor_state {
 	f32 tex_browser_right_col_x;
 	kui_control tex_browser_search_label;
 	kui_control tex_browser_search_textbox;
+	kui_control tex_browser_search_game_pack_only_checkbox;
+	kname tex_browser_search_package_name;
 	kui_control tex_browser_scrollable_control;
 	kui_control tex_browser_content_container;
 	u32 tex_browser_tex_count;
@@ -240,7 +243,7 @@ typedef struct editor_state {
 
 } editor_state;
 
-KAPI b8 editor_initialize(u64* memory_requirement, struct editor_state* state);
+KAPI b8 editor_initialize(u64* memory_requirement, struct editor_state* state, kname gmae_package_name);
 KAPI void editor_shutdown(struct editor_state* state);
 
 KAPI b8 editor_open(struct editor_state* state, kname scene_name, kname scene_package_name);

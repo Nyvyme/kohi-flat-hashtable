@@ -141,12 +141,16 @@ static void hf_terrain_set_height_checkbox_check_changed(struct kui_state* state
 
 static void tex_browser_refresh(editor_state* state);
 static void tex_browser_search_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
+static void tex_browser_search_game_pak_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event);
 
-b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
+b8 editor_initialize(u64* memory_requirement, struct editor_state* state, kname game_package_name) {
 	*memory_requirement = sizeof(editor_state);
 	if (!state) {
 		return true;
 	}
+
+	state->game_package_name = game_package_name;
+	state->tex_browser_search_package_name = game_package_name;
 
 	// Setup gizmo.
 	if (!editor_gizmo_create(&state->gizmo)) {
@@ -830,7 +834,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 		state->imagebox_padding = 5.0f;
 
 		// Texture browser background/window
-		state->tex_browser_window_size = vec2_create(1400, 900);
+		state->tex_browser_window_size = vec2_create(1500, 900);
 		state->tex_browser_right_col_x = 1100.0f;
 		state->tex_browser_bg_panel = kui_panel_control_create(kui_state, "tex_browser_bg_panel", state->tex_browser_window_size, (vec4){0, 0, 0, 0.8f});
 		KASSERT(kui_system_control_add_child(kui_state, state->editor_root, state->tex_browser_bg_panel));
@@ -850,9 +854,16 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state) {
 		state->tex_browser_search_textbox = kui_textbox_control_create(kui_state, "tex_browser_search_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_STRING);
 		KASSERT(kui_system_control_add_child(kui_state, state->tex_browser_bg_panel, state->tex_browser_search_textbox));
 		kui_control_position_set(kui_state, state->tex_browser_search_textbox, (vec3){100, 50, 0});
-		KASSERT(kui_textbox_control_width_set(kui_state, state->tex_browser_search_textbox, 1000.0f));
+		KASSERT(kui_textbox_control_width_set(kui_state, state->tex_browser_search_textbox, 800.0f));
 		kui_control_set_user_data(kui_state, state->tex_browser_search_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
 		kui_control_set_on_key(kui_state, state->tex_browser_search_textbox, tex_browser_search_textbox_on_key);
+
+		state->tex_browser_search_game_pack_only_checkbox = kui_checkbox_control_create(kui_state, "tex_browser_search_game_pack_only_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Game Pak. Only");
+		KASSERT(kui_system_control_add_child(kui_state, state->tex_browser_bg_panel, state->tex_browser_search_game_pack_only_checkbox));
+		kui_control_position_set(kui_state, state->tex_browser_search_game_pack_only_checkbox, (vec3){910, 50, 0});
+		kui_control_set_user_data(kui_state, state->tex_browser_search_game_pack_only_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_checkbox_set_checked(kui_state, state->tex_browser_search_game_pack_only_checkbox, true);
+		kui_checkbox_set_on_checked(kui_state, state->tex_browser_search_game_pack_only_checkbox, tex_browser_search_game_pak_checkbox_check_changed);
 
 		// Scrollable content control
 		f32 inspector_width = state->tex_browser_window_size.x - state->tex_browser_right_col_x;
@@ -3439,12 +3450,12 @@ static void tex_browser_refresh(editor_state* state) {
 	}
 
 	// Query for a list of textures.
-	kname* texture_names = asset_system_names_by_type(engine_systems_get()->asset_state, KASSET_TYPE_IMAGE, INVALID_KNAME, &state->tex_browser_tex_count);
+	kname* texture_names = asset_system_names_by_type(engine_systems_get()->asset_state, KASSET_TYPE_IMAGE, state->tex_browser_search_package_name, &state->tex_browser_tex_count);
 
 	if (texture_names && state->tex_browser_search_text && string_length(state->tex_browser_search_text)) {
 		kname* search_names = darray_create(kname);
 		for (u32 i = 0; i < state->tex_browser_tex_count; ++i) {
-			if (string_index_of_str(kname_string_get(texture_names[i]), state->tex_browser_search_text) != -1) {
+			if (string_index_of_stri(kname_string_get(texture_names[i]), state->tex_browser_search_text) != -1) {
 				darray_push(search_names, texture_names[i]);
 			}
 		}
@@ -3542,4 +3553,11 @@ static void tex_browser_search_textbox_on_key(kui_state* state, kui_control self
 			tex_browser_refresh(editor);
 		}
 	}
+}
+
+static void tex_browser_search_game_pak_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event) {
+	editor_state* editor = kui_control_get_user_data(state, self);
+
+	editor->tex_browser_search_package_name = event.checked ? editor->game_package_name : INVALID_KNAME;
+	tex_browser_refresh(editor);
 }

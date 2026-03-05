@@ -223,10 +223,10 @@ b8 application_initialize(struct application* app) {
 
 #ifdef KOHI_EDITOR
 	u64 editor_mem_req = 0;
-	editor_initialize(&editor_mem_req, KNULL);
+	editor_initialize(&editor_mem_req, KNULL, kname_create("Testbed"));
 	// TODO: Editor tag? or custom tag?
 	app->state->editor = kallocate(editor_mem_req, MEMORY_TAG_GAME);
-	if (!editor_initialize(&editor_mem_req, app->state->editor)) {
+	if (!editor_initialize(&editor_mem_req, app->state->editor, kname_create("Testbed"))) {
 		KERROR("Failed to initialize editor.");
 		return false;
 	}

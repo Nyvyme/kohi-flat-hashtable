@@ -893,7 +893,9 @@ static b8 kui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 						typed_data->cursor_position = typed_data->highlight_range.offset;
 					}
 				} else {
-					string_copy(str, entry_control_text);
+					if (entry_control_text) {
+						string_copy(str, entry_control_text);
+					}
 				}
 
 				string_insert_char_at(str, str, typed_data->cursor_position, char_code);

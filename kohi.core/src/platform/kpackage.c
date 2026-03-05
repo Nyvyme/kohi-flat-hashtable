@@ -57,8 +57,9 @@ b8 kpackage_create_from_manifest(const asset_manifest* manifest, kpackage* out_p
 		new_entry.name = asset->name;
 		new_entry.type = asset->type;
 		new_entry.path = string_duplicate(asset->path);
-		new_entry.source_path = string_duplicate(asset->source_path);
+		new_entry.source_path = KNULL;
 		if (asset->source_path) {
+			new_entry.source_path = string_duplicate(asset->source_path);
 		}
 		// NOTE: Size and offset don't get filled out/used with a manifest version of a package.
 
