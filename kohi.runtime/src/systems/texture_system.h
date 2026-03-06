@@ -25,6 +25,21 @@ typedef struct texture_system_config {
 	u16 max_texture_count;
 } texture_system_config;
 
+typedef struct ktexture_properties {
+	/** @brief The texture type. */
+	ktexture_type type;
+	/** @brief The texture width. */
+	u32 width;
+	/** @brief The texture height. */
+	u32 height;
+	/** @brief The format of the texture data. */
+	kpixel_format format;
+	/** @brief Holds various flags for this texture. */
+	ktexture_flag_bits flags;
+	/** @brief For arrayed textures, how many "layers" there are. Otherwise this is 1. */
+	u16 array_size;
+} ktexture_properties;
+
 /** @brief The default texture name. */
 #define DEFAULT_TEXTURE_NAME "Texture.Default"
 
@@ -339,6 +354,9 @@ KAPI b8 texture_resize(ktexture t, u32 width, u32 height, b8 regenerate_internal
  */
 KAPI b8 texture_write_data(ktexture t, u32 bpp, u32 px_x, u32 px_y, i32 layer, u32 width, u32 height, void* data);
 
+// NOTE: does not increase internal reference count, and should not be used for actual texture references (i.e. during
+// rendering). Use this to obtain texture properties, for example.
+KAPI ktexture texture_get_by_name(kname name);
 KAPI kname texture_name_get(ktexture t);
 
 KAPI u32 texture_width_get(ktexture t);
@@ -346,5 +364,7 @@ KAPI u32 texture_height_get(ktexture t);
 KAPI b8 texture_dimensions_get(ktexture t, u32* out_width, u32* out_height);
 
 KAPI ktexture_flag_bits texture_flags_get(ktexture t);
+
+KAPI b8 texture_properties_get(ktexture t, ktexture_properties* out_properties);
 
 KAPI b8 texture_is_loaded(ktexture t);

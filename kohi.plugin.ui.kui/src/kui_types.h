@@ -128,6 +128,7 @@ typedef enum kui_control_type {
 	KUI_CONTROL_TYPE_SCROLLABLE,
 	KUI_CONTROL_TYPE_IMAGE_BOX,
 	KUI_CONTROL_TYPE_CHECKBOX,
+	KUI_CONTROL_TYPE_FRAME,
 
 	KUI_CONTROL_TYPE_MAX = 64
 } kui_control_type;
@@ -292,6 +293,14 @@ typedef struct kui_textbox_control {
 	struct kui_textbox_event_listener* listener;
 } kui_textbox_control;
 
+typedef struct kui_frame_control {
+	kui_base_control base;
+	vec2i size;
+	vec4 colour;
+	nine_slice nslice;
+	u32 binding_instance_id;
+} kui_frame_control;
+
 typedef struct kui_tree_item_control {
 	kui_base_control base;
 	vec2i size;
@@ -419,6 +428,8 @@ typedef struct kui_atlas_checkbox_config {
 	rect_2di disabled_checked_rect;
 } kui_atlas_checkbox_config;
 
+typedef kui_atlas_textbox_control_mode_config kui_atlas_frame_control_config;
+
 typedef struct kui_atlas_config {
 	kname image_asset_name;
 	kname image_asset_package_name;
@@ -430,4 +441,5 @@ typedef struct kui_atlas_config {
 	kui_atlas_textbox_control_config textbox;
 	kui_atlas_scrollbar_bg_config scrollbar;
 	kui_atlas_checkbox_config checkbox;
+	kui_atlas_frame_control_config frame;
 } kui_atlas_config;

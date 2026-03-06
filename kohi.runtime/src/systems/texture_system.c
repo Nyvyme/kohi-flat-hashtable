@@ -728,6 +728,10 @@ static b8 texture_is_default(texture_system_state* state, ktexture t) {
 		   (t == state->default_water_dudv_texture);
 }
 
+ktexture texture_get_by_name(kname name) {
+	return texture_get_if_exists(name);
+}
+
 kname texture_name_get(ktexture t) {
 	if (t == INVALID_KTEXTURE) {
 		return 0;
@@ -769,6 +773,21 @@ ktexture_flag_bits texture_flags_get(ktexture t) {
 	}
 
 	return state_ptr->flags[t];
+}
+
+b8 texture_properties_get(ktexture t, ktexture_properties* out_properties) {
+	if (t == INVALID_KTEXTURE || !out_properties) {
+		return false;
+	}
+
+	out_properties->type = state_ptr->types[t];
+	out_properties->width = state_ptr->widths[t];
+	out_properties->height = state_ptr->heights[t];
+	out_properties->format = state_ptr->formats[t];
+	out_properties->flags = state_ptr->flags[t];
+	out_properties->array_size = state_ptr->array_sizes[t];
+
+	return true;
 }
 
 b8 texture_is_loaded(ktexture t) {

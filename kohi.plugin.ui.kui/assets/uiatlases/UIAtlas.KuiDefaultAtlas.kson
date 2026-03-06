@@ -117,6 +117,15 @@ controls = [
 		}
 	}
 	{
+		type = "frame"
+		extents = {
+			min = "117 181"
+			max = "227 224"
+		}
+		corner_px_size = "7 7"
+		corner_size = "7 7"
+	}
+	{
 		type = "scrollbar"
 		comment = "using the textbox graphic as the border/background"
 		bg_extents = {

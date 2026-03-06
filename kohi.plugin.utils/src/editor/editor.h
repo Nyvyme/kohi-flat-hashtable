@@ -2,6 +2,7 @@
 
 #include "kui_types.h"
 #include "math/math_types.h"
+#include "systems/texture_system.h"
 #include "world/heightfield_terrain.h"
 #include <core/frame_data.h>
 #include <core/keymap.h>
@@ -237,11 +238,24 @@ typedef struct editor_state {
 	char* tex_browser_search_text;
 	kui_control* tex_browser_image_boxes;
 	kui_control* tex_browser_labels;
+	kui_control tex_browser_selected_frame;
 	f32 imagebox_size;
 	f32 imagebox_padding;
 	vec2 tex_tile_size;
+	// The currently-selected texture in the texture browser.
+	ktexture selected_texture;
+
+	kui_control tex_inspector_preview_imagebox;
+	kui_control tex_inspector_label;
 
 } editor_state;
+
+typedef struct tex_browser_element_data {
+	struct editor_state* editor;
+	kname texture_name;
+	ktexture texture;
+	ktexture_properties properties;
+} tex_browser_element_data;
 
 KAPI b8 editor_initialize(u64* memory_requirement, struct editor_state* state, kname gmae_package_name);
 KAPI void editor_shutdown(struct editor_state* state);

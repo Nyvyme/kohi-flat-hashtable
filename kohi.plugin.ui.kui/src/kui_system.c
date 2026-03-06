@@ -126,6 +126,7 @@ b8 kui_system_initialize(u64* memory_requirement, kui_state* state, kui_system_c
 	state->scrollable_controls = darray_create(kui_scrollable_control);
 	state->image_box_controls = darray_create(kui_image_box_control);
 	state->checkbox_controls = darray_create(kui_checkbox_control);
+	state->frame_controls = darray_create(kui_frame_control);
 
 	state->root = kui_base_control_create(state, "__ROOT__", KUI_CONTROL_TYPE_BASE);
 
@@ -1456,6 +1457,10 @@ static kui_base_control* get_base(kui_state* state, kui_control control) {
 		len = darray_length(state->checkbox_controls);
 		base = type_index < len ? &state->checkbox_controls[type_index].base : KNULL;
 		break;
+	case KUI_CONTROL_TYPE_FRAME:
+		len = darray_length(state->frame_controls);
+		base = type_index < len ? &state->frame_controls[type_index].base : KNULL;
+		break;
 	// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
 	case KUI_CONTROL_TYPE_NONE:
@@ -1596,6 +1601,20 @@ static kui_control create_handle(kui_state* state, kui_control_type type) {
 		}
 		base = &state->checkbox_controls[type_index].base;
 		break;
+	case KUI_CONTROL_TYPE_FRAME:
+		len = darray_length(state->frame_controls);
+		for (u32 i = 0; i < len; ++i) {
+			if (state->frame_controls[i].base.type == KUI_CONTROL_TYPE_NONE) {
+				type_index = i;
+				break;
+			}
+		}
+		if (type_index == INVALID_ID_U16) {
+			type_index = len;
+			darray_push(state->frame_controls, (kui_frame_control){0});
+		}
+		base = &state->frame_controls[type_index].base;
+		break;
 		// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
 	case KUI_CONTROL_TYPE_NONE:
@@ -1648,6 +1667,10 @@ static void release_handle(kui_state* state, kui_control* handle) {
 		case KUI_CONTROL_TYPE_CHECKBOX:
 			kzero_memory(&state->checkbox_controls[type_index], sizeof(kui_checkbox_control));
 			base = &state->checkbox_controls[type_index].base;
+			break;
+		case KUI_CONTROL_TYPE_FRAME:
+			kzero_memory(&state->frame_controls[type_index], sizeof(kui_frame_control));
+			base = &state->frame_controls[type_index].base;
 			break;
 		case KUI_CONTROL_TYPE_MAX:
 		case KUI_CONTROL_TYPE_NONE:
@@ -1795,7 +1818,6 @@ static b8 parse_atlas_config(const char* config_source, kui_atlas_config* out_co
 			kson_object_property_value_get_vec2(&pressed_obj, "corner_px_size", &out_config->button_downarrow.pressed.corner_px_size);
 
 		} else if (strings_equali(name_str, "textbox")) {
-			// TODO: Process textbox properties
 			kson_object modes_obj;
 			if (!kson_object_property_value_get_object(&control_obj, "modes", &modes_obj)) {
 				KERROR("%s - Required property 'modes' found from controls[%u].", __FUNCTION__, i);
@@ -1815,6 +1837,10 @@ static b8 parse_atlas_config(const char* config_source, kui_atlas_config* out_co
 			kson_object_property_value_get_extents_2d(&focused_obj, "extents", &out_config->textbox.focused.extents);
 			kson_object_property_value_get_vec2(&focused_obj, "corner_size", &out_config->textbox.focused.corner_size);
 			kson_object_property_value_get_vec2(&focused_obj, "corner_px_size", &out_config->textbox.focused.corner_px_size);
+		} else if (strings_equali(name_str, "frame")) {
+			kson_object_property_value_get_extents_2d(&control_obj, "extents", &out_config->frame.extents);
+			kson_object_property_value_get_vec2(&control_obj, "corner_size", &out_config->frame.corner_size);
+			kson_object_property_value_get_vec2(&control_obj, "corner_px_size", &out_config->frame.corner_px_size);
 		} else if (strings_equali(name_str, "scrollbar")) {
 
 			// bg nine-slice

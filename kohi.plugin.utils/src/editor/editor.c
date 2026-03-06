@@ -4,6 +4,7 @@
 #include "audio/audio_frontend.h"
 #include "controls/checkbox_control.h"
 #include "controls/image_box_control.h"
+#include "controls/kui_frame.h"
 #include "controls/kui_scrollable.h"
 #include "controls/kui_tree_item.h"
 #include "core/event.h"
@@ -28,9 +29,11 @@
 #include "systems/font_system.h"
 #include "systems/kcamera_system.h"
 #include "systems/kshader_system.h"
+#include "systems/ktransform_system.h"
 #include "systems/plugin_system.h"
 #include "systems/texture_system.h"
 #include "utils/kcolour.h"
+#include "utils/render_type_utils.h"
 #include "utils_plugin_defines.h"
 #include "world/heightfield_terrain.h"
 #include "world/kscene.h"
@@ -142,6 +145,7 @@ static void hf_terrain_set_height_checkbox_check_changed(struct kui_state* state
 static void tex_browser_refresh(editor_state* state);
 static void tex_browser_search_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
 static void tex_browser_search_game_pak_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event);
+static b8 tex_browser_imagebox_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
 
 b8 editor_initialize(u64* memory_requirement, struct editor_state* state, kname game_package_name) {
 	*memory_requirement = sizeof(editor_state);
@@ -879,7 +883,26 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state, kname 
 			state->imagebox_size + state->imagebox_padding,
 			state->imagebox_size + state->imagebox_padding + state->font_size + state->imagebox_padding);
 
-		/* tex_browser_refresh(state); */
+		// Preview imagebox
+		state->tex_inspector_preview_imagebox = kui_image_box_control_create(state->kui_state, "tex_inspector_preview_imagebox", (vec2i){380, 380});
+		KASSERT(kui_system_control_add_child(kui_state, state->tex_browser_bg_panel, state->tex_inspector_preview_imagebox));
+		kui_control_position_set(kui_state, state->tex_inspector_preview_imagebox, (vec3){state->tex_browser_right_col_x + 10, 100, 0});
+		kui_image_box_control_texture_set_by_name(kui_state, state->tex_inspector_preview_imagebox, kname_create(DEFAULT_TEXTURE_NAME), INVALID_KNAME);
+
+		const char* tex_data_str = string_format(
+			"%k\n%s\n%ux%u\n%s",
+			kname_create("No selection"),
+			"texture type", // TODO:
+			0,
+			0,
+			"format:");
+
+		// texture browser tex data
+		state->tex_inspector_label = kui_label_control_create(state->kui_state, "tex_inspector_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, tex_data_str);
+		string_free(tex_data_str);
+
+		KASSERT(kui_system_control_add_child(kui_state, state->tex_browser_bg_panel, state->tex_inspector_label));
+		kui_control_position_set(kui_state, state->tex_inspector_label, (vec3){state->tex_browser_right_col_x + 10, 500, 0});
 	}
 	state->is_running = true;
 
@@ -3475,7 +3498,16 @@ static void tex_browser_refresh(editor_state* state) {
 		state->tex_browser_image_boxes = KALLOC_TYPE_CARRAY(kui_control, state->tex_browser_tex_count);
 		state->tex_browser_labels = KALLOC_TYPE_CARRAY(kui_control, state->tex_browser_tex_count);
 
+		tex_browser_element_data* first_element_data = KNULL;
 		for (u32 i = 0; i < state->tex_browser_tex_count; ++i) {
+
+			tex_browser_element_data* element_data = KALLOC_TYPE(tex_browser_element_data, MEMORY_TAG_EDITOR);
+			element_data->editor = state;
+			element_data->texture_name = texture_names[i];
+			if (i == 0) {
+				first_element_data = element_data;
+			}
+
 			// Image box
 			{
 				char* name = string_format("__texture_browser_image_box_%u__", i);
@@ -3485,7 +3517,17 @@ static void tex_browser_refresh(editor_state* state) {
 				if (!kui_image_box_control_texture_set_by_name(kui_state, state->tex_browser_image_boxes[i], texture_names[i], INVALID_KNAME)) {
 					KERROR("Image not loaded, ya dingus!");
 				}
-				// TODO: onclick select and show metadata
+
+				element_data->texture = texture_get_by_name(texture_names[i]);
+				if (!texture_properties_get(element_data->texture, &element_data->properties)) {
+					KERROR("Unable to get properties for texture '%k'", texture_names[i]);
+					KFREE_TYPE(element_data, tex_browser_element_data, MEMORY_TAG_EDITOR);
+					continue;
+				}
+				kui_control_set_user_data(kui_state, state->tex_browser_image_boxes[i], sizeof(tex_browser_element_data), element_data, true, MEMORY_TAG_EDITOR);
+				// onclick select and show metadata
+				kui_control_set_on_click(kui_state, state->tex_browser_image_boxes[i], tex_browser_imagebox_clicked);
+
 				// TODO: doubleclick selects and returns if in "selection mode"
 			}
 			// Label
@@ -3502,6 +3544,7 @@ static void tex_browser_refresh(editor_state* state) {
 					KUI_LABEL_FLAG_TRUNCATE_ELLIPSIS_BIT);
 				string_free(name);
 				KASSERT(kui_system_control_add_child(kui_state, state->tex_browser_content_container, state->tex_browser_labels[i]));
+				kui_control_set_user_data(kui_state, state->tex_browser_labels[i], sizeof(tex_browser_element_data), element_data, false, MEMORY_TAG_EDITOR);
 			}
 
 			// positioning
@@ -3518,6 +3561,45 @@ static void tex_browser_refresh(editor_state* state) {
 
 			++x;
 		}
+
+		// Selection frame.
+		state->tex_browser_selected_frame = kui_frame_control_create(state->kui_state, "tex_browser_selected_frame");
+		KASSERT(kui_system_control_add_child(kui_state, state->tex_browser_content_container, state->tex_browser_selected_frame));
+		kui_frame_control_size_set(state->kui_state, state->tex_browser_selected_frame, state->imagebox_size, state->imagebox_size);
+		// HACK: hardcoded pos to first selection - need to calculate based on selected index.
+		kui_control_position_set(kui_state, state->tex_browser_selected_frame, (vec3){0, 0, 0});
+
+		state->selected_texture = first_element_data->texture_name;
+		kui_image_box_control_texture_set_by_name(kui_state, state->tex_inspector_preview_imagebox, first_element_data->texture_name, INVALID_KNAME);
+
+		const char* tex_data_str = string_format(
+			"%k\n%s\n%ux%u\nformat:%s",
+			first_element_data->texture_name,
+			"texture type", // TODO:
+			first_element_data->properties.width,
+			first_element_data->properties.height,
+			string_from_kpixel_format(first_element_data->properties.format));
+
+		// texture browser tex data
+		kui_label_text_set(state->kui_state, state->tex_inspector_label, tex_data_str);
+		string_free(tex_data_str);
+	} else {
+
+		// No textures available, thus no selection can be made.
+		state->selected_texture = INVALID_KNAME;
+		kui_image_box_control_texture_set_by_name(kui_state, state->tex_inspector_preview_imagebox, kname_create(DEFAULT_TEXTURE_NAME), INVALID_KNAME);
+
+		const char* tex_data_str = string_format(
+			"%k\n%s\n%ux%u\n%s",
+			kname_create("No selection"),
+			"texture type", // TODO:
+			0,
+			0,
+			"format:");
+
+		// texture browser tex data
+		kui_label_text_set(state->kui_state, state->tex_inspector_label, tex_data_str);
+		string_free(tex_data_str);
 	}
 
 	f32 scrollable_height = state->tex_tile_size.y * (y + 1);
@@ -3560,4 +3642,30 @@ static void tex_browser_search_game_pak_checkbox_check_changed(struct kui_state*
 
 	editor->tex_browser_search_package_name = event.checked ? editor->game_package_name : INVALID_KNAME;
 	tex_browser_refresh(editor);
+}
+
+static b8 tex_browser_imagebox_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
+	tex_browser_element_data* element_data = kui_control_get_user_data(state, self);
+
+	kui_base_control* base = kui_system_get_base(state, self);
+	vec3 pos = ktransform_position_get(base->ktransform);
+
+	kui_base_control* selection_frame = kui_system_get_base(state, element_data->editor->tex_browser_selected_frame);
+	ktransform_position_set(selection_frame->ktransform, pos);
+
+	KTRACE("Texture selected '%k' (width=%u, height=%u).", element_data->texture_name, element_data->properties.width, element_data->properties.height);
+
+	kui_image_box_control_texture_set_by_name(state, element_data->editor->tex_inspector_preview_imagebox, element_data->texture_name, INVALID_KNAME);
+
+	const char* tex_data_str = string_format(
+		"%k\n%s\n%ux%u\nformat:%s",
+		element_data->texture_name,
+		"texture type", // TODO:
+		element_data->properties.width,
+		element_data->properties.height,
+		string_from_kpixel_format(element_data->properties.format));
+	kui_label_text_set(state, element_data->editor->tex_inspector_label, tex_data_str);
+	string_free(tex_data_str);
+
+	return false;
 }

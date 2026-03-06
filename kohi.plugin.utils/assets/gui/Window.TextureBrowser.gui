@@ -1,0 +1,36 @@
+title = "Texture Browser"
+size = "1500 900"
+position = "300 50"
+right_col_x = 1100
+item_padding = 5.0
+bg_colour = "0 0 0 0.8"
+children = [
+	{
+		type = "label"
+		position = "10 45"
+		type = "Search"
+	}
+	{
+		type = "textbox"
+		position = "100 50"
+		width = 800
+		text = "Search"
+		user_data = "$editor"
+		on_key = "tex_browser_search_textbox_on_key"
+	}
+	{
+		type = "checkbox"
+		text = "Game Pak. Only"
+		position = "910 50"
+		width = 800
+		checked = true
+		user_data = "$editor"
+		on_checked = "tex_browser_search_game_pak_checkbox_check_changed"
+	}
+	{
+		type = "scrollable"
+		position = "10 100"
+		size = "900 750"
+		user_data = "$editor"
+	}
+]
