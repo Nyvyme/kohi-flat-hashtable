@@ -1351,6 +1351,18 @@ win32_clipboard_fire:
 		free(wtext);
 	}
 }
+
+platform_open_file_dialog_result platform_open_file_dialog_open(platform_open_file_dialog_options options) {
+	// TODO: implement this
+	platform_open_file_dialog_result result = {
+		.success = false,
+		.file_count = 0,
+		.file_paths = KNULL,
+	};
+
+	return result;
+}
+
 static kwindow* window_from_handle(HWND hwnd) {
 	u32 len = darray_length(state_ptr->windows);
 	for (u32 i = 0; i < len; ++i) {

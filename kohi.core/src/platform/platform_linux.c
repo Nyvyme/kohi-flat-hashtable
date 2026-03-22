@@ -1,5 +1,4 @@
 #include "platform.h" // must be included here to get platform selection below.
-#include <systemd/sd-bus-protocol.h>
 
 // Linux platform layer.
 #if KPLATFORM_LINUX
@@ -50,6 +49,7 @@
 #	include <sys/utsname.h>
 #	include <unistd.h>
 #	include <systemd/sd-bus.h>
+#	include <systemd/sd-bus-protocol.h>
 #	include <dlfcn.h> // dlopen
 
 #	include "defines.h"

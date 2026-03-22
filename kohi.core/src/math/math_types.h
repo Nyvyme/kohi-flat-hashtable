@@ -190,7 +190,7 @@ typedef union uvec3_u {
 				vec2 vec2, xy;
 			};
 			// Accessor for the last two elements.
-			vec2 last2;
+			union vec2_u last2;
 		};
 	};
 } uvec3;
@@ -290,7 +290,7 @@ typedef union vec4_u {
 				vec2 vec2, xy;
 			};
 			// Accessor for the last two elements.
-			vec2 last2;
+			union vec2_u last2;
 		};
 	};
 } vec4;
