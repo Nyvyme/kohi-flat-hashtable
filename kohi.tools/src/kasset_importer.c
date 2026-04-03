@@ -1,12 +1,13 @@
 #include "kasset_importer.h"
 
+#include <importers/kasset_importer_audio.h>
+#include <importers/kasset_importer_bitmap_font_fnt.h>
+#include <importers/kasset_importer_image.h>
+#include <importers/kasset_importer_model_assimp.h>
+
 #include "containers/darray.h"
 #include "core_render_types.h"
 #include "defines.h"
-#include "importers/kasset_importer_audio.h"
-#include "importers/kasset_importer_bitmap_font_fnt.h"
-#include "importers/kasset_importer_image.h"
-#include "importers/kasset_importer_model_assimp.h"
 #include "logger.h"
 #include "platform/filesystem.h"
 #include "platform/kpackage.h"

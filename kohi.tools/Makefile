@@ -11,10 +11,10 @@ CFLAGS +=-fvisibility=hidden
 
 # Base linker flags
 LDFLAGS = -Lbin -Llib -L../kohi.core/bin -L../kohi.runtime/bin -lkohi.core -lkohi.runtime
-LDFLAGS += 
+LDFLAGS += -L../kohi.plugin.utils/bin -lkohi.plugin.utils -L../kohi.plugin.ui.kui/bin -lkohi.plugin.ui.kui
 
 # Base include flags
-INCLUDE_FLAGS = -Isrc -I../kohi.core/src -I../kohi.runtime/src
+INCLUDE_FLAGS = -Isrc -I../kohi.core/src -I../kohi.runtime/src -I../kohi.plugin.utils/src -I../kohi.plugin.ui.kui/src
 
 DEFINES =-DKEXPORT
 
@@ -34,22 +34,16 @@ ifeq ($(OS),Windows_NT)
 	SRC_FILES := $(call rwildcard,src,*.c)
 	DIRECTORIES := \src $(subst $(DIR),,$(shell dir src /S /AD /B | findstr /i src)) 
 	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
-	INCLUDE_FLAGS += -I'$(ASSIMP)\include'
-	LDFLAGS += -L'$(ASSIMP)\lib\x64\'
 else ifeq ($(UNAME_S),Linux)
 	PLATFORM := linux
 	SRC_FILES := $(shell find src -name "*.c")
 	DIRECTORIES := $(shell find src -type d)
 	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
-    INCLUDE_FLAGS += -I/usr/include/assimp/
-    LDFLAGS += -L/usr/lib/
 else ifeq ($(UNAME_S),Darwin)
     PLATFORM := macos
 	SRC_FILES := $(shell find src -type f \( -name "*.c" \))
 	DIRECTORIES := $(shell find src -type d)
 	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
-    INCLUDE_FLAGS += -I/opt/homebrew/opt/assimp/include
-    LDFLAGS += -L/opt/homebrew/opt/assimp/lib
 else
     $(error Unsupported platform)
 endif
@@ -121,10 +115,10 @@ link-win32: OUTPUT_NAME = bin\$(ASSEMBLY_NAME).exe
 # 		here that would not on other platforms from not being exported (i.e. Windows)
 # 		Discovered the solution here for this: https://github.com/ziglang/zig/issues/8180
 link-linux: CFLAGS += -Wno-cast-function-type-mismatch -fPIC
-link-linux: LDFLAGS += -lm -lassimp -Wl,--no-undefined,--no-allow-shlib-undefined,-rpath='$$ORIGIN'
+link-linux: LDFLAGS += -lm -Wl,--no-undefined,--no-allow-shlib-undefined,-rpath='$$ORIGIN'
 link-linux: OUTPUT_NAME = bin/$(ASSEMBLY_NAME)
 
-link-macos: LDFLAGS +=  -Wl,-rpath,. -lassimp
+link-macos: LDFLAGS +=  -Wl,-rpath,. 
 link-macos: OUTPUT_NAME = bin/$(ASSEMBLY_NAME)
 
 link-win32 link-linux link-macos: link-common

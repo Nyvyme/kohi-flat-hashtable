@@ -21,6 +21,8 @@
 #include "math/geometry_2d.h"
 #include "math/math_types.h"
 #include "memory/kmemory.h"
+#include "platform/kpackage.h"
+#include "platform/vfs.h"
 #include "plugins/plugin_types.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
@@ -1922,6 +1924,12 @@ static void editor_command_execute(console_command_context context) {
 			}
 			KFREE_TYPE_CARRAY(result.file_paths, const char*, result.file_count);
 		}
+	} else if (strings_equal(context.command_name, "wm")) {
+
+		// HACK: write manifest hack for testing. Remove this.
+		kpackage* game_package = vfs_package_get(engine_systems_get()->vfs_system_state, state->game_package_name);
+		// TODO: add asset.
+		kpackage_save(game_package);
 	}
 }
 
@@ -1954,6 +1962,8 @@ static void editor_register_commands(struct editor_state* state) {
 
 	// HACK: testing ofd... remove this
 	KASSERT(console_command_register("ofd", 0, 0, state, editor_command_execute));
+	// HACK: testing write manifest... remove this
+	KASSERT(console_command_register("wm", 0, 0, state, editor_command_execute));
 }
 
 static void editor_unregister_commands(struct editor_state* state) {
@@ -1967,6 +1977,8 @@ static void editor_unregister_commands(struct editor_state* state) {
 
 	// HACK: testing ofd... remove this
 	console_command_unregister("ofd");
+	// HACK: testing write manifest... remove this
+	KASSERT(console_command_unregister("wm"));
 }
 
 void editor_on_lib_load(struct editor_state* state) {

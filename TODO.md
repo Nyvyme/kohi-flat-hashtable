@@ -19,9 +19,11 @@ The items in this list are not in any particular order. This list will be update
     - [x] Linux (systemd for now)
     - [x] Windows
     - [ ] macOS
-- [ ] Asset manifest
+- [x] Texture Browser
+  - [x] Import button
+- [x] Asset manifest
   - [x] Query asset system by type, name, package, etc. or some combination of that.
-  - [ ] Update the manifest by importing assets via an "Assets" editor.
+  - [x] Update the manifest by importing assets via an "Assets" editor.
 - [ ] Bugfix: #264 Address window closing issue on i3wm.
 
 ## 0.13.0 Release
@@ -29,6 +31,7 @@ The items in this list are not in any particular order. This list will be update
 - [ ] UI Controls:
   - [ ] Dropdown with variable content (text, text/image, image)
   - [ ] Windows with standard min/max/close controls, titlebar, resizing
+  - [ ] Dialog/MessageBox that steals focus and has to be interacted with (i.e. to report errors, etc.)
 - [ ] Editor enhancements
   - [ ] HFTerrain->Chunk editor: Material selector dropdown
   - [ ] Generic scene - edit other global scene properties (shadow/directional light, fog dist/falloff, etc.)
@@ -38,7 +41,6 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Water materials
 - [ ] Texture Browser
   - [ ] Additional params to selection mode (i.e. texture dimension requirement for terrains, etc.)
-  - [ ] Import button
 - [ ] Terrain editor
   - [ ] Deletion of quads
   - [?] Colour painting (second map akin to splatmap to integrate extra bit of colour)

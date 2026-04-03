@@ -8,9 +8,17 @@ typedef struct asset_manifest_asset {
 	kname name;
 	kasset_type type;
 	// TODO: asset metadata
+
+	// The full path to the asset relative to the runtime.
 	// TODO: If loaded from binary, this might be null?
 	const char* path;
+	// The full path to the source asset relative to the runtime.
 	const char* source_path;
+
+	// The full path to the asset relative to the package.
+	const char* local_path;
+	// The full path to the source asset relative to the package.
+	const char* local_source_path;
 } asset_manifest_asset;
 
 /**

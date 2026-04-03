@@ -16,7 +16,6 @@
 #include "defines.h"
 #include "math_types.h"
 #include "memory/kmemory.h"
-#include <float.h>
 
 /** @brief An approximate representation of PI. */
 #define K_PI 3.14159265358979323846f

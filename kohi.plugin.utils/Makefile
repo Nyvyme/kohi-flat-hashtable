@@ -10,12 +10,10 @@ CFLAGS +=-Wno-missing-field-initializers -Wno-tautological-compare
 CFLAGS +=-fvisibility=hidden
 
 # Base linker flags
-LDFLAGS = -Lbin -Llib -L../kohi.core/bin -L../kohi.runtime/bin -lkohi.core -lkohi.runtime
-LDFLAGS += -L../kohi.plugin.ui.kui/bin -lkohi.plugin.ui.kui
+LDFLAGS = -Lbin -Llib -L../kohi.core/bin -L../kohi.runtime/bin -L../kohi.plugin.ui.kui/bin -lkohi.core -lkohi.runtime -lkohi.plugin.ui.kui
 
 # Base include flags
-INCLUDE_FLAGS = -Isrc -I../kohi.core/src -I../kohi.runtime/src
-INCLUDE_FLAGS += -I../kohi.plugin.ui.kui/src
+INCLUDE_FLAGS = -Isrc -I../kohi.core/src -I../kohi.runtime/src -I../kohi.plugin.ui.kui/src
 
 DEFINES =-DKEXPORT
 
@@ -35,16 +33,22 @@ ifeq ($(OS),Windows_NT)
 	SRC_FILES := $(call rwildcard,src,*.c)
 	DIRECTORIES := \src $(subst $(DIR),,$(shell dir src /S /AD /B | findstr /i src)) 
 	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
+	INCLUDE_FLAGS += -I'$(ASSIMP)\include'
+	LDFLAGS += -L'$(ASSIMP)\lib\x64\'
 else ifeq ($(UNAME_S),Linux)
 	PLATFORM := linux
 	SRC_FILES := $(shell find src -name "*.c")
 	DIRECTORIES := $(shell find src -type d)
 	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
+	INCLUDE_FLAGS += -I/usr/include/assimp/
+    LDFLAGS += -L/usr/lib/
 else ifeq ($(UNAME_S),Darwin)
     PLATFORM := macos
 	SRC_FILES := $(shell find src -type f \( -name "*.c" \))
 	DIRECTORIES := $(shell find src -type d)
 	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
+	INCLUDE_FLAGS += -I/opt/homebrew/opt/assimp/include
+    LDFLAGS += -L/opt/homebrew/opt/assimp/lib
 else
     $(error Unsupported platform)
 endif
@@ -107,7 +111,7 @@ clean-linux clean-macos:
 link: link-$(PLATFORM)
 
  
-link-win32: LDFLAGS += -fdeclspec -Wno-cast-function-type-mismatch -Xlinker /INCREMENTAL 
+link-win32: LDFLAGS += -lassimp-vc143-mt -fdeclspec -Wno-cast-function-type-mismatch -Xlinker /INCREMENTAL 
 link-win32: DEFINES += -D_CRT_SECURE_NO_WARNINGS -DUNICODE
 link-win32: OUTPUT_NAME = bin\$(ASSEMBLY_NAME).dll
 
@@ -116,10 +120,10 @@ link-win32: OUTPUT_NAME = bin\$(ASSEMBLY_NAME).dll
 # 		here that would not on other platforms from not being exported (i.e. Windows)
 # 		Discovered the solution here for this: https://github.com/ziglang/zig/issues/8180
 link-linux: CFLAGS += -Wno-cast-function-type-mismatch -fPIC
-link-linux: LDFLAGS += 
+link-linux: LDFLAGS += -lm -lassimp
 link-linux: OUTPUT_NAME = bin/lib$(ASSEMBLY_NAME).so
 
-link-macos: LDFLAGS += -dynamiclib -install_name @rpath/lib$(ASSEMBLY_NAME).dylib
+link-macos: LDFLAGS += -Wl,-rpath,. -lassimp -dynamiclib -install_name @rpath/lib$(ASSEMBLY_NAME).dylib
 link-macos: OUTPUT_NAME = bin/lib$(ASSEMBLY_NAME).dylib
 
 link-win32 link-linux link-macos: link-common

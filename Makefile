@@ -100,7 +100,7 @@ all-debug: setup kohi-debug kohi-tests-debug kohi-plugins-debug kohi-tools-debug
 build-debug: kohi-debug kohi-tests-debug kohi-plugins-debug kohi-tools-debug testbed-debug copy-top-level
 kohi-debug: core-debug runtime-debug 
 kohi-tests-debug: kohi-debug core-tests-debug runtime-tests-debug
-kohi-plugins-debug: kohi-debug plugin-audio-openal-debug plugin-renderer-vulkan-debug plugin-renderer-ui-kui-debug plugin-renderer-utils-debug
+kohi-plugins-debug: kohi-debug plugin-audio-openal-debug plugin-renderer-vulkan-debug plugin-ui-kui-debug plugin-utils-debug
 testbed-debug: kohi-debug kohi-plugins-debug testbed-klib-debug testbed-kapp-debug
 
 utils-debug:
@@ -124,10 +124,10 @@ plugin-audio-openal-debug:
 plugin-renderer-vulkan-debug:
 	$(MAKE) -C kohi.plugin.renderer.vulkan all-debug
 
-plugin-renderer-ui-kui-debug:
+plugin-ui-kui-debug:
 	$(MAKE) -C kohi.plugin.ui.kui all-debug
 
-plugin-renderer-utils-debug:
+plugin-utils-debug:
 	$(MAKE) -C kohi.plugin.utils all-debug
 
 kohi-tools-debug:

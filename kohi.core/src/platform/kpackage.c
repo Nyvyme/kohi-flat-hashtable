@@ -17,6 +17,12 @@ typedef struct asset_entry {
 	const char* path;
 	// Should be populated if the asset was imported.
 	const char* source_path;
+
+	// Path relative to package.
+	const char* local_path;
+	// Source path relative to package.
+	const char* local_source_path;
+
 	kasset_type type;
 
 	// If loaded from binary, these define where the asset is in the blob.
@@ -67,9 +73,14 @@ b8 kpackage_create_from_manifest(const char* manifest_file_path, const asset_man
 		new_entry.name = asset->name;
 		new_entry.type = asset->type;
 		new_entry.path = string_duplicate(asset->path);
+		new_entry.local_path = string_duplicate(asset->local_path);
 		new_entry.source_path = KNULL;
 		if (asset->source_path) {
 			new_entry.source_path = string_duplicate(asset->source_path);
+		}
+		new_entry.local_source_path = KNULL;
+		if (asset->local_source_path) {
+			new_entry.local_source_path = string_duplicate(asset->local_source_path);
 		}
 		// NOTE: Size and offset don't get filled out/used with a manifest version of a package.
 
@@ -515,21 +526,17 @@ b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_ma
 				}
 
 				// Path
-				const char* asset_path_temp = 0;
-				if (!kson_object_property_value_get_string(&asset_obj, "path", &asset_path_temp)) {
+				if (!kson_object_property_value_get_string(&asset_obj, "path", &asset.local_path)) {
 					KWARN("Failed to get asset path at array index %u. Skipping.", i);
 					continue;
 				}
 				// Full path of the asset.
-				asset.path = string_format("%s/%s", out_manifest->path, asset_path_temp);
-				string_free(asset_path_temp);
+				asset.path = string_format("%s/%s", out_manifest->path, asset.local_path);
 
 				// Source Path - optional
-				const char* asset_source_path_temp = 0;
-				if (kson_object_property_value_get_string(&asset_obj, "source_path", &asset_source_path_temp)) {
+				if (kson_object_property_value_get_string(&asset_obj, "source_path", &asset.local_source_path)) {
 					// Full source path of the asset.
-					asset.source_path = string_format("%s/%s", out_manifest->path, asset_source_path_temp);
-					string_free(asset_source_path_temp);
+					asset.source_path = string_format("%s/%s", out_manifest->path, asset.local_source_path);
 				}
 
 				// Add to assets
@@ -577,6 +584,8 @@ void kpackage_manifest_destroy(asset_manifest* manifest) {
 				asset_manifest_asset* asset = &manifest->assets[i];
 				string_free(asset->path);
 				string_free(asset->source_path);
+				string_free(asset->local_path);
+				string_free(asset->local_source_path);
 			}
 			darray_destroy(manifest->assets);
 		}
@@ -592,6 +601,8 @@ b8 kpackage_add_asset(kpackage* package, const asset_manifest_asset* asset) {
 		.type = asset->type,
 		.path = string_duplicate(asset->path),
 		.source_path = string_duplicate(asset->path),
+		.local_path = string_duplicate(asset->local_path),
+		.local_source_path = string_duplicate(asset->local_source_path),
 	};
 
 	// Push the asset to it.
@@ -606,7 +617,7 @@ b8 kpackage_save(kpackage* package) {
 	asset_manifest manifest = {
 		.path = KNULL, // FIXME: get stored path
 		.references = package->internal_data->references,
-		.file_path = KNULL, // FIXME: get stored file path
+		.file_path = package->manifest_file_path,
 		.name = package->name,
 		.assets = KALLOC_TYPE_CARRAY(asset_manifest_asset, asset_count)};
 	for (u32 i = 0; i < asset_count; ++i) {
@@ -617,6 +628,8 @@ b8 kpackage_save(kpackage* package) {
 		a->path = entry->path;
 		a->source_path = entry->source_path;
 		a->type = entry->type;
+		a->local_path = entry->local_path;
+		a->local_source_path = entry->local_source_path;
 	}
 
 	// Serialize it
@@ -640,11 +653,17 @@ b8 kpackage_save(kpackage* package) {
 		kson_object asset_obj = kson_object_create();
 		asset_manifest_asset* ma = &manifest.assets[i];
 		kson_object_value_add_kname_as_string(&asset_obj, "name", ma->name);
-		kson_object_value_add_string(&asset_obj, "path", ma->path);
-		kson_object_value_add_string(&asset_obj, "source_path", ma->source_path);
 
 		const char* type_str = kasset_type_to_string(ma->type);
 		kson_object_value_add_string(&asset_obj, "type", type_str);
+		string_free(type_str);
+
+		// Use the paths relative to the package.
+		kson_object_value_add_string(&asset_obj, "path", ma->local_path);
+		if (ma->local_source_path) {
+			kson_object_value_add_string(&asset_obj, "source_path", ma->local_source_path);
+		}
+
 		kson_array_value_add_object(&assets, asset_obj);
 	}
 	kson_object_value_add_array(&tree.root, "assets", assets);
@@ -653,14 +672,13 @@ b8 kpackage_save(kpackage* package) {
 
 	kson_tree_cleanup(&tree);
 
-	// HACK: remove this
-	KTRACE("Serialized: \n%s", serialized);
+	/* KTRACE("Serialized: \n%s", serialized); */
 
 	// Write it to disk.
-	/* if (!filesystem_write_entire_text_file(package->manifest_file_path, serialized)) {
+	if (!filesystem_write_entire_text_file(package->manifest_file_path, serialized)) {
 		KERROR("Failed to write asset manifest. See logs for details");
 		return false;
-	} */
+	}
 
 	return true;
 }

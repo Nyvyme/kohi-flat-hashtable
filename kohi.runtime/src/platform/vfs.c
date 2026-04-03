@@ -404,6 +404,22 @@ void vfs_asset_data_cleanup(vfs_asset_data* data) {
 	}
 }
 
+struct kpackage* vfs_package_get(vfs_state* state, kname package_name) {
+	if (!state || !package_name) {
+		return KNULL;
+	}
+
+	u32 count = darray_length(state->packages);
+	for (u32 i = 0; i < count; ++i) {
+		if (state->packages[i].name == package_name) {
+			return &state->packages[i];
+		}
+	}
+
+	KERROR("%s - Unable to find package '%k'.", __FUNCTION__, package_name);
+	return KNULL;
+}
+
 #if KOHI_HOT_RELOAD
 static void file_deleted(u32 watcher_id, void* context) {
 	vfs_state* state = (vfs_state*)context;

@@ -229,6 +229,15 @@ KAPI b8 vfs_asset_write_text(vfs_state* state, kname asset_name, kname package_n
  */
 KAPI void vfs_asset_data_cleanup(vfs_asset_data* data);
 
+/**
+ * @brief Attempts to get a pointer to a package with the given name.
+ *
+ * @param state A pointer to the system state. Required.
+ * @param package_name The name of the package to get.
+ * @returns A pointer to a package if found; otherwise KNULL.
+ */
+KAPI struct kpackage* vfs_package_get(vfs_state* state, kname package_name);
+
 #if KOHI_HOT_RELOAD
 /**
  * @brief Watches a given asset for on-disk updates. Only available when hot-reloading of assets is enabled.

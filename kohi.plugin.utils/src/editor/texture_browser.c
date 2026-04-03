@@ -8,17 +8,23 @@
 #include <controls/kui_scrollable.h>
 #include <controls/kui_textbox.h>
 #include <core/engine.h>
+#include <core_render_types.h>
 #include <debug/kassert.h>
+#include <importers/kasset_importer_image.h>
 #include <kui_system.h>
 #include <kui_types.h>
 #include <logger.h>
 #include <math/kmath.h>
+#include <platform/kpackage.h>
+#include <platform/platform.h>
+#include <platform/vfs.h>
 #include <strings/kstring.h>
 #include <systems/asset_system.h>
 #include <systems/texture_system.h>
 #include <utils/render_type_utils.h>
 
-#include "platform/platform.h"
+#include "assets/kasset_types.h"
+#include "strings/kname.h"
 #include "texture_browser.h"
 
 static void texture_browser_open_internal(texture_browser* tb);
@@ -134,7 +140,7 @@ void texture_browser_create(texture_browser* tb, texture_browser_create_info cre
 	kui_control_set_user_data(tb->ui, tb->import_btn, sizeof(*tb), tb, false, MEMORY_TAG_EDITOR);
 	kui_button_control_width_set(tb->ui, tb->import_btn, 190);
 	kui_control_position_set(tb->ui, tb->import_btn, (vec3){5, tb->window_size.y - 45, 0});
-	kui_control_set_on_click(tb->ui, tb->import_btn, texture_browser_cancel_button_clicked);
+	kui_control_set_on_click(tb->ui, tb->import_btn, texture_browser_import_button_clicked);
 }
 
 void texture_browser_destroy(texture_browser* tb) {
@@ -403,16 +409,70 @@ static b8 texture_browser_import_button_clicked(struct kui_state* state, kui_con
 	kui_base_control* base = kui_system_get_base(state, self);
 	texture_browser* tb = base->user_data;
 
-	// TODO: open file dialog
+	// Open file dialog
 	platform_open_file_dialog_options options = {
 		.allow_multiselect = false, // TODO: import multiple textures at once.
 		.title = "Select Image Source Assets",
 		.filter = "Image Files (*.bmp;*.jpg;*.gif;*.png)|*.bmp;*.jpg;*.gif;*.png|All files (*.*)|*.*",
 	};
 	platform_open_file_dialog_result result = platform_open_file_dialog_open(options);
-	KTRACE("Open file dialog success: %s", bool_to_string(result.success));
-	for (u8 i = 0; i < result.file_count; ++i) {
-		KTRACE("File selected (%u): '%s'", i, result.file_paths[i]);
+	if (result.success) {
+		u8 success_count = 0;
+		kpackage* package = vfs_package_get(engine_systems_get()->vfs_system_state, tb->game_package_name);
+		const char* package_dir = string_directory_from_path(package->manifest_file_path);
+		KTRACE("Open file dialog success: %s", bool_to_string(result.success));
+		for (u8 i = 0; i < result.file_count; ++i) {
+			KTRACE("File selected (%u): '%s'", i, result.file_paths[i]);
+
+			// Copy the file from wherever it is to the current game package assets/images/source dir.
+			const char* asset_file_name = string_filename_from_path(result.file_paths[i]);
+			char* source_path = string_format("%s/assets/images/source/%s", package_dir, asset_file_name);
+			char* local_source_path = string_format("./assets/images/source/%s", asset_file_name);
+			if (platform_copy_file(result.file_paths[i], source_path, true) != PLATFORM_ERROR_SUCCESS) {
+				KERROR("Failed to copy file. See logs for details.");
+			} else {
+
+				// Run the import process on that image to go from image->kbi.
+				const char* asset_name = string_filename_no_extension_from_path(result.file_paths[i]);
+				char* target_path = string_format("%s/assets/images/%s.kbi", package_dir, asset_name);
+				char* local_target_path = string_format("./assets/images/%s.kbi", asset_name);
+				if (!kasset_image_import(source_path, target_path, true, KPIXEL_FORMAT_RGBA8)) {
+					KERROR("Failed to import image asset. See logs for details.");
+				} else {
+					// Add asset to manifest.
+					asset_manifest_asset new_asset = {
+						.type = KASSET_TYPE_IMAGE,
+						.path = target_path,
+						.local_path = local_target_path,
+						.source_path = source_path,
+						.local_source_path = local_source_path,
+						.name = kname_create(asset_name)};
+					if (!kpackage_add_asset(package, &new_asset)) {
+						KERROR("Failed to add asset '%k' to package '%k'. See logs for details.", new_asset.name, tb->game_package_name);
+					} else {
+						success_count++;
+					}
+				}
+
+				string_free(asset_name);
+				string_free(target_path);
+				string_free(local_target_path);
+			}
+			string_free(asset_file_name);
+			string_free(source_path);
+			string_free(local_source_path);
+		}
+		string_free(package_dir);
+
+		if (success_count > 0) {
+			// Save manifest.
+			if (!kpackage_save(package)) {
+				KERROR("Failed to save package '%k'. See logs for details.", tb->game_package_name);
+			} else {
+				// Refresh texture browser.
+				texture_browser_refresh(tb);
+			}
+		}
 	}
 
 	// cleanup result
