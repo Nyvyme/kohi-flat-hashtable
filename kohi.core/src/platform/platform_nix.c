@@ -398,8 +398,17 @@ b8 platform_dynamic_library_load(const char* name, dynamic_library* out_library)
 
 			library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded. so/dylib"
 			if (!library) {
-				KERROR("Error opening library: %s", dlerror());
-				return false;
+				KTRACE("Trying third fallback path '%s' because of error: '%s'", filename, dlerror());
+
+				// try a fallback to /usr/local/lib
+				string_free(filename);
+				filename = string_format("/usr/lib64/%s%s%s", prefix, name, extension);
+
+				library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded. so/dylib"
+				if (!library) {
+					KERROR("Error opening library: %s", dlerror());
+					return false;
+				}
 			}
 		}
 	}
