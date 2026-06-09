@@ -1,6 +1,7 @@
 #include "defines.h"
 #include "platform.h"
 #include "platform/platform.h"
+#include <AppKit/AppKit.h>
 #include <string.h>
 
 #if defined(KPLATFORM_APPLE)
@@ -28,6 +29,7 @@
 #	import <Foundation/Foundation.h>
 #	import <QuartzCore/CAMetalLayer.h>
 #	import <QuartzCore/QuartzCore.h>
+#	import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
 @class ApplicationDelegate;
 @class WindowDelegate;
@@ -1293,6 +1295,111 @@ void platform_clipboard_content_set(kwindow* window, kclipboard_content_type typ
 
 	CFRelease(data);
 	CFRelease(pb);
+}
+
+typedef struct open_file_filter_type_data {
+	const char* description;
+	u8 extension_count;
+	const char** extensions;
+} open_file_filter_type_data;
+
+static open_file_filter_type_data* parse_open_file_filters(const char* filter_str, u8* out_count) {
+	if (!filter_str || !out_count) {
+		return KNULL;
+	}
+
+	char** parts = darray_create(char*);
+	u32 parts_count = string_split(filter_str, '|', &parts, true, false, false);
+	if (parts_count < 2) {
+		KERROR("Invalid open file filter string '%s'. Must have at least 2 parts.");
+		*out_count = 0;
+		return KNULL;
+	}
+
+	u32 type_count = parts_count / 2;
+	open_file_filter_type_data* types = KALLOC_TYPE_CARRAY(open_file_filter_type_data, type_count);
+	for (u32 i = 0; i < type_count; ++i) {
+		char** extensions = darray_create(char*);
+		u32 extensions_count = string_split(parts[(i * 2) + 1], ';', &extensions, true, false, false);
+		open_file_filter_type_data type_data = {
+			.description = string_duplicate(parts[(i * 2)]),
+			.extension_count = (u8)extensions_count,
+		};
+		type_data.extensions = KALLOC_TYPE_CARRAY(const char*, extensions_count);
+		for (u8 j = 0; j < extensions_count; ++j) {
+			type_data.extensions[j] = string_duplicate(extensions[j]);
+		}
+		string_cleanup_split_darray(extensions);
+
+		types[i] = type_data;
+	}
+
+	string_cleanup_split_darray(parts);
+
+	*out_count = type_count;
+	return types;
+}
+
+platform_open_file_dialog_result platform_open_file_dialog_open(platform_open_file_dialog_options options) {
+	platform_open_file_dialog_result ofd_result = {0};
+
+	@autoreleasepool {
+		NSOpenPanel* panel = [NSOpenPanel openPanel];
+
+		if (!options.starting_dir) {
+			options.starting_dir = ".";
+		}
+		NSURL* startUrl = [NSURL fileURLWithPath:@(options.starting_dir)];
+
+		[panel setDirectoryURL:startUrl];
+
+		[panel setCanChooseFiles:YES];
+		[panel setCanChooseDirectories:NO];
+		[panel setAllowsMultipleSelection:options.allow_multiselect];
+		[panel setMessage:@(options.title)];
+
+		// Filters, if included. If not, a default of *.*/all files is assumed.
+		if (options.filter) {
+			u8 type_count = 0;
+			open_file_filter_type_data* types = parse_open_file_filters(options.filter, &type_count);
+			if (type_count > 0) {
+				NSMutableArray<UTType*>* nstypes = [[NSMutableArray alloc] init];
+
+				// Each type
+				for (u8 i = 0; i < type_count; ++i) {
+					open_file_filter_type_data* type = &types[i];
+
+					for (u32 j = 0; j < type->extension_count; ++j) {
+						const char* ex = type->extensions[j];
+						UTType* oType = [UTType typeWithFilenameExtension:@(ex + 2)]; // NOTE: ignoring the leading '*.'
+						[nstypes addObject:oType];
+					}
+				}
+
+				panel.allowedContentTypes = nstypes;
+			}
+		}
+
+		NSInteger result = [panel runModal];
+
+		if (result == NSModalResponseOK) {
+			NSArray<NSURL*>* urls = [panel URLs];
+			ofd_result.file_count = (u8)urls.count;
+			ofd_result.file_paths = KALLOC_TYPE_CARRAY(const char*, ofd_result.file_count);
+
+			u32 i = 0;
+			for (NSURL* url in urls) {
+				const char* path = [[url path] UTF8String];
+				ofd_result.file_paths[i] = string_duplicate(path);
+				++i;
+			}
+			ofd_result.success = true;
+		} else {
+			ofd_result.success = false;
+		}
+
+		return ofd_result;
+	}
 }
 
 static keys translate_keycode(u32 ns_keycode) {

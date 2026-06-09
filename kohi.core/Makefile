@@ -120,7 +120,7 @@ link-linux: CFLAGS += -Wno-cast-function-type-mismatch -fPIC
 link-linux: LDFLAGS += -lxcb -lX11 -lX11-xcb -lxkbcommon -lxcb-xkb -lm -ldl -L/usr/X11R6/lib -Wl,--no-undefined,--no-allow-shlib-undefined,-rpath='$$ORIGIN'
 link-linux: OUTPUT_NAME = bin/lib$(ASSEMBLY_NAME).so
 
-link-macos: LDFLAGS += -dynamiclib -install_name @rpath/lib$(ASSEMBLY_NAME).dylib -lobjc -framework AppKit -framework QuartzCore -framework DiskArbitration -framework CoreFoundation
+link-macos: LDFLAGS += -dynamiclib -install_name @rpath/lib$(ASSEMBLY_NAME).dylib -lobjc -framework AppKit -framework QuartzCore -framework DiskArbitration -framework CoreFoundation -framework UniformTypeIdentifiers
 link-macos: OUTPUT_NAME = bin/lib$(ASSEMBLY_NAME).dylib
 
 link-win32 link-linux link-macos: link-common

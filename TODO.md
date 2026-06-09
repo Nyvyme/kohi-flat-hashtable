@@ -14,11 +14,11 @@ The items in this list are not in any particular order. This list will be update
   - [x] Material painting
   - [x] Elevation changes
   - [x] Chunk editor, allows to assign 5 terrain materials unique per chunk.
-- [ ] Platform layer
-  - [ ] x-platform open file dialog
+- [x] Platform layer
+  - [x] x-platform open file dialog
     - [x] Linux (systemd for now)
     - [x] Windows
-    - [ ] macOS
+    - [x] macOS
 - [x] Texture Browser
   - [x] Import button
 - [x] Asset manifest
