@@ -69,8 +69,6 @@
 
 struct kaudio_system_state;
 
-static void game_on_escape_callback(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-
 /**
  * @brief Returns the scene to be rendered.
  * NOTE: Anything that needs the "current scene" should get a pointer to it through here.
@@ -84,32 +82,7 @@ static kcamera get_current_render_camera(application* app);
 
 static void setup_keymaps(application* app);
 static void remove_keymaps(application* app);
-#if KOHI_EDITOR
-// Opens the editor, using the current zone's scene if loaded. Unloads the world copy of the scene.
-static void open_editor(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-// Closes the editor and loads the currently-open scene in the world. Unloads the editor copy of the scene.
-static void close_editor(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-#endif
-static void game_on_yaw(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void game_on_pitch(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void game_on_move_forward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void game_on_sprint_forward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void game_on_move_backward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void game_on_move_left(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void game_on_move_right(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void game_on_move_stop(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void game_on_jump(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void game_on_attack(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void game_on_console_change_visibility(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void game_on_load_scene(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void game_on_unload_scene(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void game_on_play_sound(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void game_on_toggle_sound(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void game_on_console_scroll(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void game_on_console_scroll_hold(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void game_on_console_history_back(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void game_on_console_history_forward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void game_on_debug_vsync_toggle(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+
 static f32 get_engine_delta_time(void);
 static f32 get_engine_total_time(void);
 
@@ -234,7 +207,7 @@ b8 application_initialize(struct application* app) {
 	// Editor mode keymap
 	editor_setup_keymaps(app->state->editor);
 
-	keymap_binding_add(&app->state->editor->editor_keymap, KEY_F11, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, close_editor);
+	keymap_binding_add(&app->state->editor->editor_keymap, KEY_F11, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_EDITOR_CLOSE);
 #endif
 
 #ifdef KOHI_DEBUG
@@ -590,6 +563,227 @@ void application_on_window_resize(struct application* app, const struct kwindow*
 	kui_control_position_set(app->state->kui_state, app->state->context_sensitive_text, vec3_create(21, app->state->height - 170, 0));
 }
 
+#if KOHI_DEBUG
+static b8 application_on_debug_action(struct application* app_inst, u32 action_code) {
+	application_state* state = app_inst->state;
+
+	switch (action_code) {
+	// Debug actions
+	// No-op unless a debug build
+	case GAME_ACTION_CONSOLE_VIS: {
+		b8 console_visible = debug_console_visible(&state->debug_console);
+		console_visible = !console_visible;
+
+		debug_console_visible_set(&state->debug_console, console_visible);
+		if (console_visible) {
+			input_keymap_push(&state->console_keymap);
+		} else {
+			input_keymap_pop();
+		}
+		return true;
+	}
+	case GAME_ACTION_CONSOLE_SCROLL_UP:
+		state->debug_console.accumulated_time += get_engine_delta_time();
+		if (state->debug_console.accumulated_time >= 0.1f) {
+			debug_console_move_up(&state->debug_console);
+			state->debug_console.accumulated_time = 0.0f;
+		}
+		return true;
+	case GAME_ACTION_CONSOLE_SCROLL_DOWN:
+		state->debug_console.accumulated_time += get_engine_delta_time();
+		if (state->debug_console.accumulated_time >= 0.1f) {
+			debug_console_move_down(&state->debug_console);
+			state->debug_console.accumulated_time = 0.0f;
+		}
+		return true;
+	case GAME_ACTION_CONSOLE_HISTORY_BACK:
+		debug_console_history_back(&state->debug_console);
+		return true;
+	case GAME_ACTION_CONSOLE_HISTORY_FORWARD:
+		debug_console_history_forward(&state->debug_console);
+		return true;
+		//
+	}
+
+	return false;
+}
+#endif
+
+#if KOHI_EDITOR
+// only called when in-editor
+static b8 application_on_editor_action(struct application* app_inst, u32 action_code) {
+	application_state* state = app_inst->state;
+
+	if (editor_on_action(state->editor, action_code)) {
+		// Handled
+		return true;
+	}
+
+	// Technically an editor command, but handle here.
+	switch (action_code) {
+	case GAME_ACTION_CONSOLE_VIS: {
+		b8 console_visible = debug_console_visible(&state->debug_console);
+		console_visible = !console_visible;
+
+		debug_console_visible_set(&state->debug_console, console_visible);
+		if (console_visible) {
+			input_keymap_push(&state->console_keymap);
+		} else {
+			input_keymap_pop();
+		}
+		return true;
+	}
+	}
+
+	return false;
+}
+#endif
+
+/**
+ * Gameplay actions
+ */
+static b8 application_on_gameplay_action(struct application* app_inst, u32 action_code) {
+	application_state* state = app_inst->state;
+
+	f32 delta = get_engine_delta_time();
+	game_constants* constants = &state->game.constants;
+
+	switch (action_code) {
+
+	case GAME_ACTION_TURN_LEFT:
+		kcamera_yaw(state->world_camera, 2.5f * delta);
+		return true;
+	case GAME_ACTION_TURN_RIGHT:
+		kcamera_yaw(state->world_camera, -2.5f * delta);
+		return true;
+	case GAME_ACTION_LOOK_UP:
+		kcamera_pitch(state->world_camera, 1.0f * delta);
+		return true;
+	case GAME_ACTION_LOOK_DOWN:
+		kcamera_pitch(state->world_camera, -1.0f * delta);
+		return true;
+	case GAME_ACTION_MOVE_FORWARD:
+		kcamera_move_forward(state->world_camera, constants->base_movement_speed * delta);
+		return true;
+	case GAME_ACTION_SPRINT_FORWARD:
+		kcamera_move_forward(state->world_camera, (constants->base_movement_speed * 2.0f) * delta);
+		return true;
+	case GAME_ACTION_MOVE_BACKWARD:
+		kcamera_move_backward(state->world_camera, constants->base_movement_speed * delta);
+		return true;
+	case GAME_ACTION_MOVE_LEFT:
+		kcamera_move_left(state->world_camera, constants->base_movement_speed * delta);
+		return true;
+	case GAME_ACTION_MOVE_RIGHT:
+		kcamera_move_right(state->world_camera, constants->base_movement_speed * delta);
+		return true;
+	case GAME_ACTION_MOVE_UP:
+		kcamera_move_up(state->world_camera, constants->base_movement_speed * delta);
+		return true;
+	case GAME_ACTION_MOVE_DOWN:
+		kcamera_move_down(state->world_camera, constants->base_movement_speed * delta);
+		return true;
+	}
+	return false;
+}
+
+void application_on_action(struct application* app_inst, u32 action_code) {
+	application_state* state = app_inst->state;
+
+#if KOHI_DEBUG
+	if (application_on_debug_action(app_inst, action_code)) {
+		// Handled by debug.
+		return;
+	}
+#endif
+
+#if KOHI_EDITOR
+	if (application_on_editor_action(app_inst, action_code)) {
+		// Handled by editor.
+		return;
+	}
+#endif
+
+	if (state->mode == TESTBED_APP_MODE_WORLD) {
+		if (application_on_gameplay_action(app_inst, action_code)) {
+			// Handled by editor.
+			return;
+		}
+	}
+
+	// TODO: break this up based on current game state (i.e. menu vs play vs title screen, etc.)
+	switch (action_code) {
+	case GAME_ACTION_EDITOR_CLOSE: {
+		if (state->mode == TESTBED_APP_MODE_EDITOR) {
+			if (editor_close(state->editor)) {
+				// TODO: Should be the zone that was just edited.
+
+				// Load up the current editor scene.
+				kasset_text* asset = asset_system_request_text_sync(engine_systems_get()->asset_state, "test_scene");
+				if (!asset) {
+					KERROR("Failed to load test_scene scene asset.");
+					return;
+				}
+				state->current_scene = kscene_create(kname_create("test_scene"), asset->content, 0, 0, false);
+
+				state->mode = TESTBED_APP_MODE_WORLD;
+				KTRACE("Changed to world mode, forget about it cuhh.");
+				if (!input_keymap_pop()) {
+					KERROR("No keymap was popped during editor->world");
+				}
+				input_keymap_push(&state->world_keymap);
+			} else {
+				KINFO("Editor failed to close, but this might not be an error.");
+			}
+		}
+	} break;
+	case GAME_ACTION_EDITOR_OPEN: {
+		if (state->mode == TESTBED_APP_MODE_WORLD) {
+			if (!state->current_scene) {
+				// TODO: prompt for a selection.
+				KERROR("Can't switch to editor without a scene loaded first.");
+				return;
+			}
+
+			KINFO("Attempting to open editor for scene '%k', package='%k'...", state->scene_name, state->scene_package_name);
+			if (editor_open(state->editor, state->scene_name, state->scene_package_name)) {
+				KINFO("Unloading active zone scene...");
+				// Unload the current zone's scene from the world.
+				kscene_destroy(state->current_scene);
+				state->current_scene = KNULL;
+				KINFO("Zone scene unloaded.");
+
+				state->mode = TESTBED_APP_MODE_EDITOR;
+				KINFO("Editor opened successfully.");
+			} else {
+				KERROR("Editor failed to open.");
+			}
+		}
+	} break;
+	case GAME_ACTION_QUIT:
+		KDEBUG("GAME_ACTION_QUIT");
+		event_fire(EVENT_CODE_APPLICATION_QUIT, 0, (event_context){});
+		break;
+	case GAME_ACTION_VSYNC_TOGGLE: {
+		char cmd[30];
+		string_ncopy(cmd, "kvar_set_int vsync 0", 29);
+		b8 vsync_enabled = renderer_flag_enabled_get(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT);
+		u32 length = string_length(cmd);
+		cmd[length - 1] = vsync_enabled ? '1' : '0';
+		console_command_execute(cmd);
+	} break;
+	case GAME_ACTION_LOAD_TEST_SCENE: {
+		char* command = string_format("load_scene %s", "test_zone");
+		console_command_execute(command);
+		string_free(command);
+	} break;
+	case GAME_ACTION_UNLOAD_SCENE: {
+		// Just execute it as a console command as if it were entered in the debug console.
+		console_command_execute("unload_zone");
+	} break;
+	}
+}
+
 void application_shutdown(struct application* app) {
 	app->state->running = false;
 
@@ -667,67 +861,59 @@ static void setup_keymaps(application* app) {
 
 	// Global keymap
 	app->state->global_keymap = keymap_create();
-	keymap_binding_add(&app->state->global_keymap, KEY_ESCAPE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_escape_callback);
-	keymap_binding_add(&app->state->global_keymap, KEY_V, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_debug_vsync_toggle);
-	keymap_binding_add(&app->state->global_keymap, KEY_GRAVE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_console_change_visibility);
-	keymap_binding_add(&app->state->global_keymap, KEY_L, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_load_scene);
-	keymap_binding_add(&app->state->global_keymap, KEY_U, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_unload_scene);
+	keymap_binding_add(&app->state->global_keymap, KEY_ESCAPE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_QUIT);
+	keymap_binding_add(&app->state->global_keymap, KEY_V, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_VSYNC_TOGGLE);
+	keymap_binding_add(&app->state->global_keymap, KEY_GRAVE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_VIS);
+
+	keymap_binding_add(&app->state->global_keymap, KEY_L, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_LOAD_TEST_SCENE);
+	keymap_binding_add(&app->state->global_keymap, KEY_U, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_UNLOAD_SCENE);
 
 	// World mode keymap
 	{
 		app->state->world_keymap = keymap_create();
 #if KOHI_EDITOR
-		keymap_binding_add(&app->state->world_keymap, KEY_F11, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, open_editor);
+		keymap_binding_add(&app->state->world_keymap, KEY_F11, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_EDITOR_OPEN);
 #endif
 
-		keymap_binding_add(&app->state->world_keymap, KEY_A, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_yaw);
-		keymap_binding_add(&app->state->world_keymap, KEY_LEFT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_yaw);
-		keymap_binding_add(&app->state->world_keymap, KEY_A, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, app, game_on_yaw);
-		keymap_binding_add(&app->state->world_keymap, KEY_LEFT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, app, game_on_yaw);
+		keymap_binding_add(&app->state->world_keymap, KEY_A, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_TURN_LEFT);
+		keymap_binding_add(&app->state->world_keymap, KEY_LEFT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_TURN_LEFT);
+		keymap_binding_add(&app->state->world_keymap, KEY_A, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_TURN_LEFT);
+		keymap_binding_add(&app->state->world_keymap, KEY_LEFT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_TURN_LEFT);
 
-		keymap_binding_add(&app->state->world_keymap, KEY_D, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_yaw);
-		keymap_binding_add(&app->state->world_keymap, KEY_RIGHT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_yaw);
-		keymap_binding_add(&app->state->world_keymap, KEY_D, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, app, game_on_yaw);
-		keymap_binding_add(&app->state->world_keymap, KEY_RIGHT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, app, game_on_yaw);
+		keymap_binding_add(&app->state->world_keymap, KEY_D, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_TURN_RIGHT);
+		keymap_binding_add(&app->state->world_keymap, KEY_RIGHT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_TURN_RIGHT);
+		keymap_binding_add(&app->state->world_keymap, KEY_D, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_TURN_RIGHT);
+		keymap_binding_add(&app->state->world_keymap, KEY_RIGHT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_TURN_RIGHT);
 
-		keymap_binding_add(&app->state->world_keymap, KEY_UP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_pitch);
-		keymap_binding_add(&app->state->world_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_pitch);
-		keymap_binding_add(&app->state->world_keymap, KEY_UP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, app, game_on_pitch);
-		keymap_binding_add(&app->state->world_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, app, game_on_pitch);
+		keymap_binding_add(&app->state->world_keymap, KEY_UP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_LOOK_UP);
+		keymap_binding_add(&app->state->world_keymap, KEY_UP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_LOOK_UP);
+		keymap_binding_add(&app->state->world_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_LOOK_DOWN);
+		keymap_binding_add(&app->state->world_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_LOOK_DOWN);
 
-		keymap_binding_add(&app->state->world_keymap, KEY_W, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_move_forward);
-		keymap_binding_add(&app->state->world_keymap, KEY_W, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, app, game_on_sprint_forward);
-		keymap_binding_add(&app->state->world_keymap, KEY_S, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_move_backward);
-		keymap_binding_add(&app->state->world_keymap, KEY_Q, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_move_left);
-		keymap_binding_add(&app->state->world_keymap, KEY_E, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_move_right);
+		keymap_binding_add(&app->state->world_keymap, KEY_W, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_MOVE_FORWARD);
+		keymap_binding_add(&app->state->world_keymap, KEY_W, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_SPRINT_FORWARD);
+		keymap_binding_add(&app->state->world_keymap, KEY_S, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_MOVE_BACKWARD);
+		keymap_binding_add(&app->state->world_keymap, KEY_Q, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_MOVE_LEFT);
+		keymap_binding_add(&app->state->world_keymap, KEY_E, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_MOVE_RIGHT);
 
-		keymap_binding_add(&app->state->world_keymap, KEY_W, KEYMAP_BIND_TYPE_RELEASE, KEYMAP_MODIFIER_NONE_BIT, app, game_on_move_stop);
-		keymap_binding_add(&app->state->world_keymap, KEY_W, KEYMAP_BIND_TYPE_RELEASE, KEYMAP_MODIFIER_SHIFT_BIT, app, game_on_move_stop);
-		keymap_binding_add(&app->state->world_keymap, KEY_S, KEYMAP_BIND_TYPE_RELEASE, KEYMAP_MODIFIER_NONE_BIT, app, game_on_move_stop);
-
-		keymap_binding_add(&app->state->world_keymap, KEY_SPACE, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_jump);
-		// keymap_binding_add(&app->state->world_keymap, KEY_SPACE, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, app, game_on_jump);
-
-		keymap_binding_add(&app->state->world_keymap, KEY_F, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_attack);
-		keymap_binding_add(&app->state->world_keymap, KEY_F, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_SHIFT_BIT, app, game_on_attack);
-		keymap_binding_add(&app->state->world_keymap, KEY_Q, KEYMAP_BIND_TYPE_RELEASE, KEYMAP_MODIFIER_NONE_BIT, app, game_on_move_stop);
-		keymap_binding_add(&app->state->world_keymap, KEY_E, KEYMAP_BIND_TYPE_RELEASE, KEYMAP_MODIFIER_NONE_BIT, app, game_on_move_stop);
+		keymap_binding_add(&app->state->world_keymap, KEY_SPACE, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_MOVE_UP);
+		keymap_binding_add(&app->state->world_keymap, KEY_Z, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_MOVE_DOWN);
 	}
 
 	// A console-specific keymap. Is not pushed by default.
 	{
 		app->state->console_keymap = keymap_create();
 		app->state->console_keymap.overrides_all = true;
-		keymap_binding_add(&app->state->console_keymap, KEY_GRAVE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_console_change_visibility);
-		keymap_binding_add(&app->state->console_keymap, KEY_ESCAPE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_console_change_visibility);
+		keymap_binding_add(&app->state->console_keymap, KEY_GRAVE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_VIS);
+		keymap_binding_add(&app->state->console_keymap, KEY_ESCAPE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_VIS);
 
-		keymap_binding_add(&app->state->console_keymap, KEY_PAGEUP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_console_scroll);
-		keymap_binding_add(&app->state->console_keymap, KEY_PAGEDOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_console_scroll);
-		keymap_binding_add(&app->state->console_keymap, KEY_PAGEUP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_console_scroll_hold);
-		keymap_binding_add(&app->state->console_keymap, KEY_PAGEDOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_console_scroll_hold);
+		keymap_binding_add(&app->state->console_keymap, KEY_PAGEUP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_SCROLL_UP);
+		keymap_binding_add(&app->state->console_keymap, KEY_PAGEDOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_SCROLL_DOWN);
+		keymap_binding_add(&app->state->console_keymap, KEY_PAGEUP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_SCROLL_UP);
+		keymap_binding_add(&app->state->console_keymap, KEY_PAGEDOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_SCROLL_DOWN);
 
-		keymap_binding_add(&app->state->console_keymap, KEY_UP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_console_history_back);
-		keymap_binding_add(&app->state->console_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_console_history_forward);
+		keymap_binding_add(&app->state->console_keymap, KEY_UP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_HISTORY_BACK);
+		keymap_binding_add(&app->state->console_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_HISTORY_FORWARD);
 	}
 
 // If this was done with the console open, push its keymap.
@@ -741,264 +927,6 @@ static void setup_keymaps(application* app) {
 
 static void remove_keymaps(application* app) {
 	//
-}
-
-static void game_on_escape_callback(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	KDEBUG("game_on_escape_callback");
-	event_fire(EVENT_CODE_APPLICATION_QUIT, 0, (event_context){});
-}
-
-#ifdef KOHI_EDITOR
-static void open_editor(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	application* app = (application*)user_data;
-
-	if (app->state->mode == TESTBED_APP_MODE_WORLD) {
-		if (!app->state->current_scene) {
-			// TODO: prompt for a selection.
-			KERROR("Can't switch to editor without a scene loaded first.");
-			return;
-		}
-
-		KINFO("Attempting to open editor for scene '%k', package='%k'...", app->state->scene_name, app->state->scene_package_name);
-		if (editor_open(app->state->editor, app->state->scene_name, app->state->scene_package_name)) {
-			KINFO("Unloading active zone scene...");
-			// Unload the current zone's scene from the world.
-			kscene_destroy(app->state->current_scene);
-			app->state->current_scene = KNULL;
-			KINFO("Zone scene unloaded.");
-
-			app->state->mode = TESTBED_APP_MODE_EDITOR;
-			KINFO("Editor opened successfully.");
-		} else {
-			KERROR("Editor failed to open.");
-		}
-	}
-}
-
-static void close_editor(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	application* app = (application*)user_data;
-
-	if (app->state->mode == TESTBED_APP_MODE_EDITOR) {
-		if (editor_close(app->state->editor)) {
-			// TODO: Should be the zone that was just edited.
-
-			// Load up the current editor scene.
-			kasset_text* asset = asset_system_request_text_sync(engine_systems_get()->asset_state, "test_scene");
-			if (!asset) {
-				KERROR("Failed to load test_scene scene asset.");
-				return;
-			}
-			app->state->current_scene = kscene_create(kname_create("test_scene"), asset->content, 0, 0, false);
-
-			app->state->mode = TESTBED_APP_MODE_WORLD;
-			KTRACE("Changed to world mode, forget about it cuhh.");
-			if (!input_keymap_pop()) {
-				KERROR("No keymap was popped during editor->world");
-			}
-			input_keymap_push(&app->state->world_keymap);
-		} else {
-			KINFO("Editor failed to close, but this might not be an error.");
-		}
-	}
-}
-#endif
-
-static void game_on_yaw(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	application* app = (application*)user_data;
-
-	f32 delta = get_engine_delta_time();
-
-	if (app->state->mode == TESTBED_APP_MODE_WORLD) {
-		if (key == KEY_LEFT || key == KEY_A) {
-			kcamera_yaw(app->state->world_camera, 2.5f * delta);
-		} else if (key == KEY_RIGHT || key == KEY_D) {
-			kcamera_yaw(app->state->world_camera, -2.5f * delta);
-		}
-	}
-}
-
-static void game_on_pitch(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	application* app = (application*)user_data;
-
-	f32 delta = get_engine_delta_time();
-
-	f32 f = 0.0f;
-	if (key == KEY_UP) {
-		f = 1.0f;
-	} else if (key == KEY_DOWN) {
-		f = -1.0f;
-	}
-
-	kcamera_pitch(app->state->world_camera, f * delta);
-}
-
-static void game_on_move_forward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	application* app = (application*)user_data;
-
-	if (app->state->mode == TESTBED_APP_MODE_WORLD) {
-		f32 delta = get_engine_delta_time();
-		game_constants* constants = &app->state->game.constants;
-		kcamera_move_forward(app->state->world_camera, constants->base_movement_speed * delta);
-	}
-}
-
-static void game_on_sprint_forward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	application* app = (application*)user_data;
-
-	if (app->state->mode == TESTBED_APP_MODE_WORLD) {
-		f32 delta = get_engine_delta_time();
-		game_constants* constants = &app->state->game.constants;
-		kcamera_move_forward(app->state->world_camera, (constants->base_movement_speed * 2.0f) * delta);
-	}
-}
-
-static void game_on_move_backward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	application* app = (application*)user_data;
-
-	if (app->state->mode == TESTBED_APP_MODE_WORLD) {
-		f32 delta = get_engine_delta_time();
-		game_constants* constants = &app->state->game.constants;
-		kcamera_move_backward(app->state->world_camera, constants->base_movement_speed * delta);
-	}
-}
-
-static void game_on_move_left(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	application* app = (application*)user_data;
-
-	if (app->state->mode == TESTBED_APP_MODE_WORLD) {
-		f32 delta = get_engine_delta_time();
-		game_constants* constants = &app->state->game.constants;
-		kcamera_move_left(app->state->world_camera, constants->base_movement_speed * delta);
-	}
-}
-
-static void game_on_move_right(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	application* app = (application*)user_data;
-
-	if (app->state->mode == TESTBED_APP_MODE_WORLD) {
-		f32 delta = get_engine_delta_time();
-		game_constants* constants = &app->state->game.constants;
-		kcamera_move_right(app->state->world_camera, constants->base_movement_speed * delta);
-	}
-}
-
-static void game_on_move_stop(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	application* app = (application*)user_data;
-	if (app->state->mode == TESTBED_APP_MODE_WORLD) {
-		//
-	}
-}
-
-static void game_on_jump(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	application* app = (application*)user_data;
-	if (app->state->mode == TESTBED_APP_MODE_WORLD) {
-		f32 delta = get_engine_delta_time();
-		game_constants* constants = &app->state->game.constants;
-		kcamera_move_up(app->state->world_camera, constants->base_movement_speed * delta);
-	}
-}
-
-static void game_on_attack(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	application* app = (application*)user_data;
-	if (app->state->mode == TESTBED_APP_MODE_WORLD) {
-		//
-	}
-}
-
-static void game_on_console_change_visibility(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	// No-op unless a debug build
-#if KOHI_DEBUG
-	application* app = (application*)user_data;
-
-	b8 console_visible = debug_console_visible(&app->state->debug_console);
-	console_visible = !console_visible;
-
-	debug_console_visible_set(&app->state->debug_console, console_visible);
-	if (console_visible) {
-		input_keymap_push(&app->state->console_keymap);
-	} else {
-		input_keymap_pop();
-	}
-#endif
-}
-
-static void game_on_load_scene(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-
-	// HACK: Trigger loading of a specific scene.
-	// Just execute it as a console command as if it were entered in the debug console.
-	char* command = string_format("load_scene %s", "test_zone");
-	console_command_execute(command);
-	string_free(command);
-}
-
-static void game_on_unload_scene(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-
-	// Just execute it as a console command as if it were entered in the debug console.
-	console_command_execute("unload_zone");
-}
-
-static void game_on_play_sound(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	event_fire(EVENT_CODE_DEBUG3, (application*)user_data, (event_context){});
-}
-static void game_on_toggle_sound(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	event_fire(EVENT_CODE_DEBUG4, (application*)user_data, (event_context){});
-}
-
-static void game_on_console_scroll(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-// No-op unless a debug build.
-#if KOHI_DEBUG
-	application* app = (application*)user_data;
-	debug_console_state* console_state = &app->state->debug_console;
-	if (key == KEY_PAGEUP) {
-		debug_console_move_up(console_state);
-	} else if (key == KEY_PAGEDOWN) {
-		debug_console_move_down(console_state);
-	}
-#endif
-}
-
-static void game_on_console_scroll_hold(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	// No-op unless a debug build.
-#if KOHI_DEBUG
-	application* app = (application*)user_data;
-	debug_console_state* console_state = &app->state->debug_console;
-
-	static f32 accumulated_time = 0.0f;
-	accumulated_time += get_engine_delta_time();
-
-	if (accumulated_time >= 0.1f) {
-		if (key == KEY_PAGEUP) {
-			debug_console_move_up(console_state);
-		} else if (key == KEY_PAGEDOWN) {
-			debug_console_move_down(console_state);
-		}
-		accumulated_time = 0.0f;
-	}
-#endif
-}
-
-static void game_on_console_history_back(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-// No-op unless a debug build.
-#if KOHI_DEBUG
-	application* app = (application*)user_data;
-	debug_console_history_back(&app->state->debug_console);
-#endif
-}
-
-static void game_on_console_history_forward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	// No-op unless a debug build.
-#if KOHI_DEBUG
-	application* app = (application*)user_data;
-	debug_console_history_forward(&app->state->debug_console);
-#endif
-}
-static void game_on_debug_vsync_toggle(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	char cmd[30];
-	string_ncopy(cmd, "kvar_set_int vsync 0", 29);
-	b8 vsync_enabled = renderer_flag_enabled_get(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT);
-	u32 length = string_length(cmd);
-	cmd[length - 1] = vsync_enabled ? '1' : '0';
-	console_command_execute(cmd);
 }
 
 static f32 get_engine_delta_time(void) {

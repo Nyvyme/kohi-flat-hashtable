@@ -81,28 +81,11 @@ typedef struct hf_terrain_chunk_material_context {
 
 static f32 get_engine_delta_time(void);
 static f32 get_engine_total_time(void);
-
-// Render modes
-static void editor_on_set_render_mode_default(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void editor_on_set_render_mode_lighting(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void editor_on_set_render_mode_normals(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void editor_on_set_render_mode_cascades(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void editor_on_set_render_mode_wireframe(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static b8 editor_has_focused_control(editor_state* editor);
 
 // General editor movement/interaction
-static void editor_on_yaw(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void editor_on_pitch(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void editor_on_set_gizmo_mode(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void editor_on_gizmo_orientation_set(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void editor_on_move_forward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void editor_on_sprint_forward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void editor_on_move_backward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void editor_on_move_left(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void editor_on_move_right(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void editor_on_move_up(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void editor_on_move_down(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void editor_on_save_scene(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
-static void editor_on_zoom_extents(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void save_scene(const struct kscene* scene, kname package_name, kname asset_name);
+static void zoom_extents(struct editor_state* state);
 static b8 editor_on_mouse_move(u16 code, void* sender, void* listener_inst, event_context context);
 static b8 editor_on_drag(u16 code, void* sender, void* listener_inst, event_context context);
 static b8 editor_on_button(u16 code, void* sender, void* listener_inst, event_context context);
@@ -1483,45 +1466,159 @@ void editor_on_window_resize(struct editor_state* state, const struct kwindow* w
 
 void editor_setup_keymaps(struct editor_state* state) {
 	state->editor_keymap = keymap_create();
+	keymap* km = &state->editor_keymap;
 	/* state->editor_keymap.overrides_all = true; */
 
-	keymap_binding_add(&state->editor_keymap, KEY_A, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, state, editor_on_yaw);
-	keymap_binding_add(&state->editor_keymap, KEY_LEFT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, state, editor_on_yaw);
+	keymap_binding_add(km, KEY_A, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_LOOK_LEFT);
+	keymap_binding_add(km, KEY_LEFT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_LOOK_LEFT);
 
-	keymap_binding_add(&state->editor_keymap, KEY_D, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, state, editor_on_yaw);
-	keymap_binding_add(&state->editor_keymap, KEY_RIGHT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, state, editor_on_yaw);
+	keymap_binding_add(km, KEY_D, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_LOOK_RIGHT);
+	keymap_binding_add(km, KEY_RIGHT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_LOOK_RIGHT);
 
-	keymap_binding_add(&state->editor_keymap, KEY_UP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, state, editor_on_pitch);
-	keymap_binding_add(&state->editor_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, state, editor_on_pitch);
+	keymap_binding_add(km, KEY_UP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_LOOK_UP);
+	keymap_binding_add(km, KEY_DOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_LOOK_DOWN);
 
-	keymap_binding_add(&state->editor_keymap, KEY_W, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, state, editor_on_move_forward);
-	keymap_binding_add(&state->editor_keymap, KEY_W, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, state, editor_on_sprint_forward);
-	keymap_binding_add(&state->editor_keymap, KEY_S, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, state, editor_on_move_backward);
-	keymap_binding_add(&state->editor_keymap, KEY_Q, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, state, editor_on_move_left);
-	keymap_binding_add(&state->editor_keymap, KEY_E, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, state, editor_on_move_right);
-	keymap_binding_add(&state->editor_keymap, KEY_SPACE, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, state, editor_on_move_up);
-	keymap_binding_add(&state->editor_keymap, KEY_X, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, state, editor_on_move_down);
+	keymap_binding_add(km, KEY_W, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_MOVE_FORWARD);
+	keymap_binding_add(km, KEY_W, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, EDITOR_ACTION_SPRINT_FORWARD);
+	keymap_binding_add(km, KEY_S, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_MOVE_BACKWARD);
+	keymap_binding_add(km, KEY_Q, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_MOVE_LEFT);
+	keymap_binding_add(km, KEY_E, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_MOVE_RIGHT);
+	keymap_binding_add(km, KEY_SPACE, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_MOVE_UP);
+	keymap_binding_add(km, KEY_X, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_MOVE_DOWN);
 
-	keymap_binding_add(&state->editor_keymap, KEY_0, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, state, editor_on_set_render_mode_default);
-	keymap_binding_add(&state->editor_keymap, KEY_1, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, state, editor_on_set_render_mode_lighting);
-	keymap_binding_add(&state->editor_keymap, KEY_2, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, state, editor_on_set_render_mode_normals);
-	keymap_binding_add(&state->editor_keymap, KEY_3, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, state, editor_on_set_render_mode_cascades);
-	keymap_binding_add(&state->editor_keymap, KEY_4, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, state, editor_on_set_render_mode_wireframe);
+	keymap_binding_add(km, KEY_0, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, EDITOR_ACTION_RENDER_MODE_DEFAULT);
+	keymap_binding_add(km, KEY_1, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, EDITOR_ACTION_RENDER_MODE_LIGHTING);
+	keymap_binding_add(km, KEY_2, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, EDITOR_ACTION_RENDER_MODE_NORMALS);
+	keymap_binding_add(km, KEY_3, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, EDITOR_ACTION_RENDER_MODE_CASCADES);
+	keymap_binding_add(km, KEY_4, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, EDITOR_ACTION_RENDER_MODE_WIREFRAME);
 
-	keymap_binding_add(&state->editor_keymap, KEY_1, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, state, editor_on_set_gizmo_mode);
-	keymap_binding_add(&state->editor_keymap, KEY_2, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, state, editor_on_set_gizmo_mode);
-	keymap_binding_add(&state->editor_keymap, KEY_3, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, state, editor_on_set_gizmo_mode);
-	keymap_binding_add(&state->editor_keymap, KEY_4, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, state, editor_on_set_gizmo_mode);
-	keymap_binding_add(&state->editor_keymap, KEY_G, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, state, editor_on_gizmo_orientation_set);
+	keymap_binding_add(km, KEY_1, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_GIZMO_MODE_NONE);
+	keymap_binding_add(km, KEY_2, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_GIZMO_MODE_MOVE);
+	keymap_binding_add(km, KEY_3, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_GIZMO_MODE_ROTATE);
+	keymap_binding_add(km, KEY_4, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_GIZMO_MODE_SCALE);
+	keymap_binding_add(km, KEY_G, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_GIZMO_TOGGLE_ORIENTATION);
 
 	// ctrl s
-	keymap_binding_add(&state->editor_keymap, KEY_S, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, state, editor_on_save_scene);
+	keymap_binding_add(km, KEY_S, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, EDITOR_ACTION_SCENE_SAVE);
 
-	keymap_binding_add(&state->editor_keymap, KEY_Z, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, state, editor_on_zoom_extents);
+	keymap_binding_add(km, KEY_Z, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_ZOOM_EXTENTS);
 }
 
 void editor_destroy_keymaps(struct editor_state* state) {
 	keymap_clear(&state->editor_keymap);
+}
+
+b8 editor_on_action(struct editor_state* state, u32 action_code) {
+	switch (action_code) {
+	case EDITOR_ACTION_MOVE_FORWARD:
+		if (!editor_has_focused_control(state)) {
+			f32 delta = get_engine_delta_time();
+			kcamera_move_forward(state->editor_camera, state->editor_camera_forward_move_speed * delta);
+		}
+		return true;
+	case EDITOR_ACTION_MOVE_BACKWARD:
+		if (!editor_has_focused_control(state)) {
+			f32 delta = get_engine_delta_time();
+			kcamera_move_backward(state->editor_camera, state->editor_camera_backward_move_speed * delta);
+		}
+		return true;
+	case EDITOR_ACTION_SPRINT_FORWARD:
+		if (!editor_has_focused_control(state)) {
+			f32 delta = get_engine_delta_time();
+			kcamera_move_forward(state->editor_camera, state->editor_camera_forward_move_speed * 2 * delta);
+		}
+		return true;
+	case EDITOR_ACTION_MOVE_LEFT:
+		if (!editor_has_focused_control(state)) {
+			f32 delta = get_engine_delta_time();
+			kcamera_move_left(state->editor_camera, state->editor_camera_forward_move_speed * delta);
+		}
+		return true;
+	case EDITOR_ACTION_MOVE_RIGHT:
+		if (!editor_has_focused_control(state)) {
+			f32 delta = get_engine_delta_time();
+			kcamera_move_right(state->editor_camera, state->editor_camera_forward_move_speed * delta);
+		}
+		return true;
+	case EDITOR_ACTION_MOVE_UP:
+		if (!editor_has_focused_control(state)) {
+			kcamera_move_up(state->editor_camera, state->editor_camera_forward_move_speed * get_engine_delta_time());
+		}
+		return true;
+	case EDITOR_ACTION_MOVE_DOWN:
+		if (!editor_has_focused_control(state)) {
+			kcamera_move_down(state->editor_camera, state->editor_camera_forward_move_speed * get_engine_delta_time());
+		}
+		return true;
+	case EDITOR_ACTION_LOOK_LEFT:
+		kcamera_yaw(state->editor_camera, 1.0f * get_engine_delta_time());
+		return true;
+	case EDITOR_ACTION_LOOK_RIGHT:
+		kcamera_yaw(state->editor_camera, -1.0f * get_engine_delta_time());
+		return true;
+	case EDITOR_ACTION_LOOK_UP:
+		kcamera_pitch(state->editor_camera, 1.0f * get_engine_delta_time());
+		return true;
+	case EDITOR_ACTION_LOOK_DOWN:
+		kcamera_pitch(state->editor_camera, -1.0f * get_engine_delta_time());
+		return true;
+	case EDITOR_ACTION_ZOOM_EXTENTS:
+		zoom_extents(state);
+		return true;
+
+	case EDITOR_ACTION_RENDER_MODE_DEFAULT:
+		if (!editor_has_focused_control(state)) {
+			console_command_execute("render_mode_set 0");
+		}
+		return true;
+	case EDITOR_ACTION_RENDER_MODE_LIGHTING:
+		if (!editor_has_focused_control(state)) {
+			console_command_execute("render_mode_set 1");
+		}
+		return true;
+	case EDITOR_ACTION_RENDER_MODE_NORMALS:
+		if (!editor_has_focused_control(state)) {
+			console_command_execute("render_mode_set 2");
+		}
+		return true;
+	case EDITOR_ACTION_RENDER_MODE_CASCADES:
+		if (!editor_has_focused_control(state)) {
+			console_command_execute("render_mode_set 3");
+		}
+		return true;
+	case EDITOR_ACTION_RENDER_MODE_WIREFRAME:
+		if (!editor_has_focused_control(state)) {
+			console_command_execute("render_mode_set 4");
+		}
+		return true;
+
+	case EDITOR_ACTION_GIZMO_MODE_NONE:
+		editor_gizmo_mode_set(&state->gizmo, EDITOR_GIZMO_MODE_NONE);
+		return true;
+	case EDITOR_ACTION_GIZMO_MODE_MOVE:
+		editor_gizmo_mode_set(&state->gizmo, EDITOR_GIZMO_MODE_MOVE);
+		return true;
+	case EDITOR_ACTION_GIZMO_MODE_ROTATE:
+		editor_gizmo_mode_set(&state->gizmo, EDITOR_GIZMO_MODE_ROTATE);
+		return true;
+	case EDITOR_ACTION_GIZMO_MODE_SCALE:
+		editor_gizmo_mode_set(&state->gizmo, EDITOR_GIZMO_MODE_SCALE);
+		return true;
+	case EDITOR_ACTION_GIZMO_TOGGLE_ORIENTATION: {
+		editor_gizmo_orientation o = editor_gizmo_orientation_get(&state->gizmo);
+		o = (o == EDITOR_GIZMO_ORIENTATION_LOCAL) ? EDITOR_GIZMO_ORIENTATION_GLOBAL : EDITOR_GIZMO_ORIENTATION_LOCAL;
+		editor_gizmo_orientation_set(&state->gizmo, o);
+		return true;
+	}
+
+	case EDITOR_ACTION_SCENE_SAVE:
+		if (!editor_has_focused_control(state)) {
+			save_scene(state->edit_scene, state->scene_package_name, state->scene_asset_name);
+		}
+		return true;
+	}
+
+	return false;
 }
 
 static f32 get_engine_delta_time(void) {
@@ -1536,189 +1633,6 @@ static f32 get_engine_total_time(void) {
 
 static b8 editor_has_focused_control(editor_state* editor) {
 	return editor->kui_state->focused.val != INVALID_KUI_CONTROL.val;
-}
-
-static void editor_on_yaw(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	editor_state* state = (editor_state*)user_data;
-	if (editor_has_focused_control(state)) {
-		return;
-	}
-
-	f32 f = 0.0f;
-	if (key == KEY_LEFT || key == KEY_A) {
-		f = 1.0f;
-	} else if (key == KEY_RIGHT || key == KEY_D) {
-		f = -1.0f;
-	}
-	kcamera_yaw(state->editor_camera, f * get_engine_delta_time());
-}
-
-static void editor_on_pitch(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	editor_state* state = (editor_state*)user_data;
-	if (editor_has_focused_control(state)) {
-		return;
-	}
-
-	f32 f = 0.0f;
-	if (key == KEY_UP) {
-		f = 1.0f;
-	} else if (key == KEY_DOWN) {
-		f = -1.0f;
-	}
-
-	kcamera_pitch(state->editor_camera, f * get_engine_delta_time());
-}
-
-static void editor_on_set_render_mode_default(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	editor_state* state = (editor_state*)user_data;
-	if (editor_has_focused_control(state)) {
-		return;
-	}
-	console_command_execute("render_mode_set 0");
-}
-
-static void editor_on_set_render_mode_lighting(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	editor_state* state = (editor_state*)user_data;
-	if (editor_has_focused_control(state)) {
-		return;
-	}
-	console_command_execute("render_mode_set 1");
-}
-
-static void editor_on_set_render_mode_normals(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	editor_state* state = (editor_state*)user_data;
-	if (editor_has_focused_control(state)) {
-		return;
-	}
-	console_command_execute("render_mode_set 2");
-}
-
-static void editor_on_set_render_mode_cascades(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	editor_state* state = (editor_state*)user_data;
-	if (editor_has_focused_control(state)) {
-		return;
-	}
-	console_command_execute("render_mode_set 3");
-}
-
-static void editor_on_set_render_mode_wireframe(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	editor_state* state = (editor_state*)user_data;
-	if (editor_has_focused_control(state)) {
-		return;
-	}
-	console_command_execute("render_mode_set 4");
-}
-
-static void editor_on_set_gizmo_mode(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	editor_state* state = (editor_state*)user_data;
-	if (editor_has_focused_control(state)) {
-		return;
-	}
-
-	editor_gizmo_mode mode;
-	switch (key) {
-	case KEY_1:
-	default:
-		mode = EDITOR_GIZMO_MODE_NONE;
-		break;
-	case KEY_2:
-		mode = EDITOR_GIZMO_MODE_MOVE;
-		break;
-	case KEY_3:
-		mode = EDITOR_GIZMO_MODE_ROTATE;
-		break;
-	case KEY_4:
-		mode = EDITOR_GIZMO_MODE_SCALE;
-		break;
-	}
-	editor_gizmo_mode_set(&state->gizmo, mode);
-}
-
-static void editor_on_gizmo_orientation_set(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	editor_state* state = (editor_state*)user_data;
-	if (editor_has_focused_control(state)) {
-		return;
-	}
-
-	editor_gizmo_orientation orientation = editor_gizmo_orientation_get(&state->gizmo);
-	orientation++;
-	if (orientation > EDITOR_GIZMO_ORIENTATION_MAX) {
-		orientation = 0;
-	}
-	editor_gizmo_orientation_set(&state->gizmo, orientation);
-}
-
-static void editor_on_move_forward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	editor_state* state = (editor_state*)user_data;
-	if (editor_has_focused_control(state)) {
-		return;
-	}
-
-	f32 delta = get_engine_delta_time();
-
-	kcamera_move_forward(state->editor_camera, state->editor_camera_forward_move_speed * delta);
-}
-
-static void editor_on_sprint_forward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	editor_state* state = (editor_state*)user_data;
-	if (editor_has_focused_control(state)) {
-		return;
-	}
-
-	f32 delta = get_engine_delta_time();
-
-	kcamera_move_forward(state->editor_camera, state->editor_camera_forward_move_speed * 2 * delta);
-}
-
-static void editor_on_move_backward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	editor_state* state = (editor_state*)user_data;
-	if (editor_has_focused_control(state)) {
-		return;
-	}
-
-	f32 delta = get_engine_delta_time();
-
-	kcamera_move_backward(state->editor_camera, state->editor_camera_backward_move_speed * delta);
-}
-
-static void editor_on_move_left(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	editor_state* state = (editor_state*)user_data;
-	if (editor_has_focused_control(state)) {
-		return;
-	}
-
-	f32 delta = get_engine_delta_time();
-
-	kcamera_move_left(state->editor_camera, state->editor_camera_forward_move_speed * delta);
-}
-
-static void editor_on_move_right(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	editor_state* state = (editor_state*)user_data;
-	if (editor_has_focused_control(state)) {
-		return;
-	}
-
-	f32 delta = get_engine_delta_time();
-
-	kcamera_move_right(state->editor_camera, state->editor_camera_forward_move_speed * delta);
-}
-
-static void editor_on_move_up(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	editor_state* state = (editor_state*)user_data;
-	if (editor_has_focused_control(state)) {
-		return;
-	}
-
-	kcamera_move_up(state->editor_camera, state->editor_camera_forward_move_speed * get_engine_delta_time());
-}
-
-static void editor_on_move_down(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	editor_state* state = (editor_state*)user_data;
-	if (editor_has_focused_control(state)) {
-		return;
-	}
-
-	kcamera_move_down(state->editor_camera, state->editor_camera_forward_move_speed * get_engine_delta_time());
 }
 
 static void save_scene(const struct kscene* scene, kname package_name, kname asset_name) {
@@ -1744,18 +1658,8 @@ static void save_scene(const struct kscene* scene, kname package_name, kname ass
 	}
 }
 
-static void editor_on_save_scene(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-	editor_state* state = (editor_state*)user_data;
-	if (editor_has_focused_control(state)) {
-		return;
-	}
-	save_scene(state->edit_scene, state->scene_package_name, state->scene_asset_name);
-}
-
-static void editor_on_zoom_extents(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+static void zoom_extents(struct editor_state* state) {
 	KTRACE("Zoom extents");
-
-	editor_state* state = (editor_state*)user_data;
 
 	if (darray_length(state->selection_list)) {
 

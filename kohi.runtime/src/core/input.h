@@ -17,6 +17,7 @@
 
 struct keymap;
 struct frame_data;
+struct application;
 
 /**
  * @brief Initializes the input system. Call twice; once to obtain memory requirement (passing
@@ -27,7 +28,7 @@ struct frame_data;
  * @param config Ignored.
  * @returns True on success; otherwise false.
  */
-b8 input_system_initialize(u64* memory_requirement, void* state, void* config);
+b8 input_system_initialize(u64* memory_requirement, void* state, void* config, struct application* app);
 
 /**
  * @brief Shuts the input system down.

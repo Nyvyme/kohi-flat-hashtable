@@ -24,6 +24,20 @@ The items in this list are not in any particular order. This list will be update
 - [x] Asset manifest
   - [x] Query asset system by type, name, package, etc. or some combination of that.
   - [x] Update the manifest by importing assets via an "Assets" editor.
+- [ ] Hot-reloading fixes
+  - [ ] Rework keymaps to use game lib defined "actions" (likely a big-ol' enum) handled by
+        a single point of entry into the app instead of callbacks. This should reduce the
+        number of callbacks needed to be refreshed on hot-reload.
+  - [ ] Convert Testbed over to new keymaps and confirm hot-reloading works.
+- [ ] Ensure Testbed project runs successfully (debug)
+- [ ] Add notes to readme about binary asset generation.
+  - [ ] Add a "import all from manifest(s)" option that just runs all imports.
+
+## 0.13.0 Release
+
+- [ ] Stability pass
+  - [ ] Ensure both debug AND release builds work as expected.
+  - [ ] Address sanitizer bug resolution, etc.
 - [ ] Nav meshes
   - [ ] Nav mesh system - hold/manage nav meshes. Also responsible for the debug rendering of nav meshes.
     - [ ] Creation of nav mesh based on node name within a model (i.e. a mesh named "navmesh-xx" would be used to create a navmesh, and not be rendered)
@@ -31,11 +45,6 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Debug renderer to show nav meshes (instead of just rendering a mesh) - include ability to turn off depth
   - [ ] Ability to retrieve nav meshes from scene.
   - [ ] Ability to snap to nav mesh given a point in 3d space (i.e spawn points).
-- [ ] Ensure Testbed project runs successfully
-- [ ] Add notes to readme about binary asset generation.
-
-## 0.13.0 Release
-
 - [ ] UI Controls:
   - [ ] Dropdown with variable content (text, text/image, image)
   - [ ] Windows with standard min/max/close controls, titlebar, resizing

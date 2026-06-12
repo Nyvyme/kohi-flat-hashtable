@@ -428,9 +428,9 @@ b8 engine_create(application* app, const char* app_config_path, const char* game
 
 	// Input system.
 	{
-		input_system_initialize(&systems->input_system_memory_requirement, 0, 0);
+		input_system_initialize(&systems->input_system_memory_requirement, KNULL, KNULL, KNULL);
 		systems->input_system = kallocate(systems->input_system_memory_requirement, MEMORY_TAG_ENGINE);
-		if (!input_system_initialize(&systems->input_system_memory_requirement, systems->input_system, 0)) {
+		if (!input_system_initialize(&systems->input_system_memory_requirement, systems->input_system, KNULL, app)) {
 			KERROR("Failed to initialize input system.");
 			return false;
 		}
@@ -1162,6 +1162,10 @@ static b8 load_game_lib(application* app) {
 	}
 	app->on_window_resize = platform_dynamic_library_load_function("application_on_window_resize", &app->game_library);
 	if (!app->on_window_resize) {
+		return false;
+	}
+	app->on_action = platform_dynamic_library_load_function("application_on_action", &app->game_library);
+	if (!app->on_action) {
 		return false;
 	}
 	app->shutdown = platform_dynamic_library_load_function("application_shutdown", &app->game_library);

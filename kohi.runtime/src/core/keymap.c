@@ -15,7 +15,7 @@ keymap keymap_create(void) {
 	return map;
 }
 
-void keymap_binding_add(keymap* map, keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data, PFN_keybind_callback callback) {
+void keymap_binding_add(keymap* map, keys key, keymap_entry_bind_type type, keymap_modifier modifiers, keymap_action_code code) {
 	if (map) {
 		keymap_entry* entry = &map->entries[key];
 		keymap_binding* node = entry->bindings;
@@ -26,11 +26,10 @@ void keymap_binding_add(keymap* map, keys key, keymap_entry_bind_type type, keym
 		}
 
 		keymap_binding* new_entry = kallocate(sizeof(keymap_binding), MEMORY_TAG_KEYMAP);
-		new_entry->callback = callback;
+		new_entry->code = code;
 		new_entry->modifiers = modifiers;
 		new_entry->type = type;
 		new_entry->next = 0;
-		new_entry->user_data = user_data;
 
 		if (previous) {
 			previous->next = new_entry;
@@ -40,13 +39,13 @@ void keymap_binding_add(keymap* map, keys key, keymap_entry_bind_type type, keym
 	}
 }
 
-void keymap_binding_remove(keymap* map, keys key, keymap_entry_bind_type type, keymap_modifier modifiers, PFN_keybind_callback callback) {
+void keymap_binding_remove(keymap* map, keys key, keymap_entry_bind_type type, keymap_modifier modifiers, keymap_action_code code) {
 	if (map) {
 		keymap_entry* entry = &map->entries[key];
 		keymap_binding* node = entry->bindings;
 		keymap_binding* previous = entry->bindings;
 		while (node) {
-			if (node->callback == callback && node->modifiers == modifiers && node->type == type) {
+			if (node->code == code && node->modifiers == modifiers && node->type == type) {
 				// Remove it
 				previous->next = node->next;
 				kfree(node, sizeof(keymap_binding), MEMORY_TAG_KEYMAP);

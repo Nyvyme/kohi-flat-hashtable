@@ -12,6 +12,13 @@ Changelog
     - Stencil - Pre-existing, but uses geometry and the stencil buffer to clip. More flexible, but more expensive.
     - Scissor - uses the renderer's scissor setting to clip. Bound to axis-aligned rectangle, but is far more efficient than stencil.
   - Updated UI system to use scissor clipping areas by default.
+  - Fixed numerous issues with hot-reloading the game library.
+  - Finalized terrain materials, for now.
+  - Added terrain editor features - general properties, material painting, elevation changes, chunk editor.
+  - Added cross-platform open file dialog, used to import assets (textures for now).
+  - Added Texture Browser, with ability to call in "selection" mode for tools that need it (i.e. terrain material editor)
+  - Reworked keymaps to use application-defined action code, with a single entry point into the application versus a ton of function pointers. This improves hot-reloadability.
+
 
 - 0.11.0
   - Due to changes in the Vulkan layer, the newest SDK must be installed on macOS.

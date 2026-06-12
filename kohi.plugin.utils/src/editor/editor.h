@@ -68,6 +68,40 @@ typedef enum hf_terrain_elevation_edit_mode {
 	HF_TERRAIN_ELEVATION_EDIT_MODE_COUNT
 } hf_terrain_elevation_edit_mode;
 
+// Editor actions reserve the action range from 0x1000-0x1FFF
+typedef enum editor_action {
+	EDITOR_ACTION_MIN = 0x1000,
+
+	EDITOR_ACTION_MOVE_FORWARD = 0x1001,
+	EDITOR_ACTION_MOVE_BACKWARD = 0x1002,
+	EDITOR_ACTION_SPRINT_FORWARD = 0x1003,
+	EDITOR_ACTION_MOVE_LEFT = 0x1004,
+	EDITOR_ACTION_MOVE_RIGHT = 0x1005,
+	EDITOR_ACTION_MOVE_UP = 0x1006,
+	EDITOR_ACTION_MOVE_DOWN = 0x1007,
+	EDITOR_ACTION_LOOK_LEFT = 0x1008,
+	EDITOR_ACTION_LOOK_RIGHT = 0x1009,
+	EDITOR_ACTION_LOOK_UP = 0x100A,
+	EDITOR_ACTION_LOOK_DOWN = 0x100B,
+	EDITOR_ACTION_ZOOM_EXTENTS = 0x100C,
+
+	EDITOR_ACTION_RENDER_MODE_DEFAULT = 0x1010,
+	EDITOR_ACTION_RENDER_MODE_LIGHTING = 0x1011,
+	EDITOR_ACTION_RENDER_MODE_NORMALS = 0x1012,
+	EDITOR_ACTION_RENDER_MODE_CASCADES = 0x1013,
+	EDITOR_ACTION_RENDER_MODE_WIREFRAME = 0x1014,
+
+	EDITOR_ACTION_GIZMO_MODE_NONE = 0x1200,
+	EDITOR_ACTION_GIZMO_MODE_MOVE = 0x1201,
+	EDITOR_ACTION_GIZMO_MODE_ROTATE = 0x1202,
+	EDITOR_ACTION_GIZMO_MODE_SCALE = 0x1203,
+	EDITOR_ACTION_GIZMO_TOGGLE_ORIENTATION = 0x1204,
+
+	EDITOR_ACTION_SCENE_SAVE = 0x1300,
+
+	EDITOR_ACTION_MAX = 0x1FFF,
+} editor_action;
+
 typedef struct editor_state {
 	kname game_package_name;
 	// Editor camera
@@ -260,6 +294,8 @@ KAPI void editor_on_window_resize(struct editor_state* state, const struct kwind
 
 KAPI void editor_setup_keymaps(struct editor_state* state);
 KAPI void editor_destroy_keymaps(struct editor_state* state);
+
+KAPI b8 editor_on_action(struct editor_state* state, u32 action_code);
 
 KAPI void editor_on_lib_load(struct editor_state* state);
 KAPI void editor_on_lib_unload(struct editor_state* state);

@@ -94,6 +94,8 @@ typedef struct application {
 	 * */
 	void (*on_window_resize)(struct application* app_inst, const struct kwindow* window);
 
+	void (*on_action)(struct application* app_inst, u32 action_code);
+
 	/**
 	 * @brief Shuts down the application, prompting release of resources.
 	 * @param app_inst A pointer to the application instance.

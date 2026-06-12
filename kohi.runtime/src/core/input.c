@@ -1,5 +1,6 @@
 #include "core/input.h"
 
+#include "application/application_types.h"
 #include "containers/stack.h"
 #include "core/event.h"
 #include "core/keymap.h"
@@ -28,14 +29,17 @@ typedef struct input_state {
 	stack keymap_stack;
 	// keymap active_keymap;
 	b8 allow_key_repeats;
+
+	struct application* app;
 } input_state;
 
 // Internal input state pointer
+// FIXME: Get rid of this static rubbish
 static input_state* state_ptr;
 
 static b8 check_modifiers(keymap_modifier modifiers);
 
-b8 input_system_initialize(u64* memory_requirement, void* state, void* config) {
+b8 input_system_initialize(u64* memory_requirement, void* state, void* config, struct application* app) {
 	*memory_requirement = sizeof(input_state);
 	if (state == 0) {
 		return true;
@@ -48,6 +52,7 @@ b8 input_system_initialize(u64* memory_requirement, void* state, void* config) {
 	// state_ptr->active_keymap = keymap_create();
 
 	state_ptr->allow_key_repeats = false;
+	state_ptr->app = app;
 
 	KINFO("Input subsystem initialized.");
 
@@ -80,8 +85,8 @@ void input_update(const struct frame_data* p_frame_data) {
 						unset = true;
 						break;
 					} else if (binding->type == KEYMAP_BIND_TYPE_HOLD) {
-						if (binding->callback && check_modifiers(binding->modifiers)) {
-							binding->callback(key, binding->type, binding->modifiers, binding->user_data);
+						if (binding->code && check_modifiers(binding->modifiers)) {
+							state_ptr->app->on_action(state_ptr->app, binding->code);
 						}
 					}
 
@@ -180,14 +185,10 @@ void input_process_key(keys key, b8 pressed, b8 is_repeat) {
 				}
 
 				if (pressed && binding->type & KEYMAP_BIND_TYPE_PRESS) {
-					if (binding->callback && check_modifiers(binding->modifiers)) {
-						binding->callback(key, binding->type, binding->modifiers, binding->user_data);
-					}
+					state_ptr->app->on_action(state_ptr->app, binding->code);
 				}
 				if (!pressed && binding->type & KEYMAP_BIND_TYPE_RELEASE && !is_repeat_state) {
-					if (binding->callback && check_modifiers(binding->modifiers)) {
-						binding->callback(key, binding->type, binding->modifiers, binding->user_data);
-					}
+					state_ptr->app->on_action(state_ptr->app, binding->code);
 				}
 
 				binding = binding->next;
