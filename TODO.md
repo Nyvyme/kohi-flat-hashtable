@@ -2,39 +2,6 @@
 
 The items in this list are not in any particular order. This list will be updated occasionally as development progresses.
 
-## 0.12.0 Release
-
-- [x] Heightfield terrains (perhaps replacement for old system).
-- [x] Terrain materials (Special blended, simplified PBR)
-  - [x] Albedo maps
-  - [x] Normal maps
-  - [x] MRA maps
-- [x] Terrain editor
-  - [x] General properites editor (select global materials for terrain, etc.)
-  - [x] Material painting
-  - [x] Elevation changes
-  - [x] Chunk editor, allows to assign 5 terrain materials unique per chunk.
-- [x] Platform layer
-  - [x] x-platform open file dialog
-    - [x] Linux (systemd for now)
-    - [x] Windows
-    - [x] macOS
-- [x] Texture Browser
-  - [x] Import button
-- [x] Asset manifest
-  - [x] Query asset system by type, name, package, etc. or some combination of that.
-  - [x] Update the manifest by importing assets via an "Assets" editor.
-- [x] Hot-reloading fixes
-  - [x] Rework keymaps to use game lib defined "actions" (likely a big-ol' enum) handled by
-        a single point of entry into the app instead of callbacks. This should reduce the
-        number of callbacks needed to be refreshed on hot-reload.
-  - [x] Convert Testbed over to new keymaps and confirm hot-reloading works.
-- [x] Ensure Testbed project runs successfully (debug)
-- [x] Add notes to readme about binary asset generation.
-  - [x] Add a "import all from manifest(s)" option that just runs all imports.
-- [x] Stability pass
-  - [x] Ensure both debug AND release builds work as expected.
-
 ## 0.13.0 Release
 
 - [ ] Stability pass
@@ -656,5 +623,38 @@ The items in this list are not in any particular order. This list will be update
 - [x] Build: Make a setup script that creates the clangd 'compile_flags.txt'
       files that is independent of the build process and can be run separately
       when the project is first cloned.
+
+## 0.12.0 Release
+
+- [x] Heightfield terrains (perhaps replacement for old system).
+- [x] Terrain materials (Special blended, simplified PBR)
+  - [x] Albedo maps
+  - [x] Normal maps
+  - [x] MRA maps
+- [x] Terrain editor
+  - [x] General properites editor (select global materials for terrain, etc.)
+  - [x] Material painting
+  - [x] Elevation changes
+  - [x] Chunk editor, allows to assign 5 terrain materials unique per chunk.
+- [x] Platform layer
+  - [x] x-platform open file dialog
+    - [x] Linux (systemd for now)
+    - [x] Windows
+    - [x] macOS
+- [x] Texture Browser
+  - [x] Import button
+- [x] Asset manifest
+  - [x] Query asset system by type, name, package, etc. or some combination of that.
+  - [x] Update the manifest by importing assets via an "Assets" editor.
+- [x] Hot-reloading fixes
+  - [x] Rework keymaps to use game lib defined "actions" (likely a big-ol' enum) handled by
+        a single point of entry into the app instead of callbacks. This should reduce the
+        number of callbacks needed to be refreshed on hot-reload.
+  - [x] Convert Testbed over to new keymaps and confirm hot-reloading works.
+- [x] Ensure Testbed project runs successfully (debug)
+- [x] Add notes to readme about binary asset generation.
+  - [x] Add a "import all from manifest(s)" option that just runs all imports.
+- [x] Stability pass
+  - [x] Ensure both debug AND release builds work as expected.
 
 Back to [readme](readme.md)
