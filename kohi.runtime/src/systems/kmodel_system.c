@@ -142,7 +142,7 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 			kmodel_node* target = &base->nodes[i];
 
 			target->name = source->name;
-			KTRACE("node: '%k'", target->name);
+			/* KTRACE("node: '%k'", target->name); */
 			target->parent_index = source->parent_index;
 			target->local_transform = source->local_transform;
 			target->child_count = source->child_count;
@@ -421,7 +421,7 @@ kmodel_instance kmodel_instance_acquire_from_package(struct kmodel_system_state*
 			kname_string_get(asset_name),
 			listener,
 			kasset_model_loaded);
-		KASSERT_DEBUG(asset);
+		KASSERT(asset);
 	} else {
 		KTRACE("Base mesh for '%k' already exists (%u). Getting new instance.", asset_name, base_id);
 		// Base mesh already exists, just need to get material instances.
@@ -637,6 +637,7 @@ b8 kmodel_ray_intersects(struct kmodel_system_state* state, kmodel_instance inst
 		if (ray_pick_triangle(&rt, false, mesh->geo.vertex_count, mesh->geo.vertex_element_size, mesh->geo.vertices, mesh->geo.index_count, mesh->geo.indices, &picked, &pos, &normal)) {
 			if (out_hit) {
 				out_hit->type = RAYCAST_HIT_TYPE_SURFACE;
+				// FIXME: Should this be the inverse world? To get the world position?
 				// Transform position.
 				pos = vec3_transform(pos, 1.0f, world);
 				// Transform normal too.
@@ -660,6 +661,10 @@ b8 kmodel_submesh_count_get(struct kmodel_system_state* state, u16 base_mesh_id,
 	}
 	*out_count = state->models[base_mesh_id].submesh_count;
 	return true;
+}
+
+b8 kmodel_is_loaded(struct kmodel_system_state* state, u16 base_mesh_id) {
+	return state->states[base_mesh_id] == KMODEL_STATE_LOADED;
 }
 
 const kgeometry* kmodel_submesh_geometry_get_at(struct kmodel_system_state* state, u16 base_mesh_id, u16 index) {

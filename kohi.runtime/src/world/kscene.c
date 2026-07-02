@@ -36,6 +36,10 @@
 #include <utils/kcolour.h>
 #include <world/world_types.h>
 
+#include "assets/kasset_types.h"
+#include "serializers/kasset_hf_terrain_serializer.h"
+#include "systems/asset_system.h"
+#include "world/heightfield_terrain.h"
 #include "world/world_utils.h"
 
 #define kSCENE_CURRENT_VERSION 1
@@ -214,10 +218,11 @@ typedef struct kgeometry_data {
 	u16 material_instance_id;
 } kgeometry_data;
 
+#if KOHI_DEBUG
 typedef enum kscene_debug_data_type {
-	kSCENE_DEBUG_DATA_TYPE_NONE,
-	kSCENE_DEBUG_DATA_TYPE_RECTANGLE,
-	kSCENE_DEBUG_DATA_TYPE_SPHERE,
+	KSCENE_DEBUG_DATA_TYPE_NONE,
+	KSCENE_DEBUG_DATA_TYPE_RECTANGLE,
+	KSCENE_DEBUG_DATA_TYPE_SPHERE,
 } kscene_debug_data_type;
 
 typedef struct kscene_debug_data {
@@ -228,6 +233,7 @@ typedef struct kscene_debug_data {
 	colour4 colour;
 	b8 ignore_scale;
 } kscene_debug_data;
+#endif
 
 #if KOHI_DEBUG
 typedef struct scene_bvh_debug_data {
@@ -279,7 +285,7 @@ typedef struct kscene {
 	f32 shadow_bias;
 
 	// Fog settings
-	colour3 fog_colour;
+	colour4 fog_colour;
 	f32 fog_near;
 	f32 fog_far;
 
@@ -340,6 +346,10 @@ typedef struct kscene {
 	// darray of active collision shape states.
 	collision_shape_state* col_shape_states;
 
+	kname scene_asset_name;
+	const char* hf_terrain_asset_name;
+	hf_terrain hf;
+
 #if KOHI_DEBUG
 	// Darray of debug render data.
 	kscene_debug_data* debug_datas;
@@ -379,9 +389,14 @@ static void audio_emitter_entity_destroy(kscene* scene, audio_emitter_entity* ty
 
 #if KOHI_DEBUG
 static void create_debug_data(kscene* scene, vec3 size, vec3 center, kentity entity, kscene_debug_data_type type, colour4 colour, b8 ignore_scale, u32* out_debug_data_index);
+static kscene_debug_data_type debug_type_from_shape_type(kshape_type type);
+#else
+// Intentional no-op in release
+#	define create_debug_data(scene, size, center, entity, type, colour, ignore_scale, out_debug_data_index)
+#	define debug_type_from_shape_type(type)
 #endif
 
-struct kscene* kscene_create(const char* config, PFN_scene_loaded loaded_callback, void* load_context) {
+struct kscene* kscene_create(kname scene_asset_name, const char* config, PFN_scene_loaded loaded_callback, void* load_context, b8 is_editor) {
 
 	kscene* scene = KALLOC_TYPE(kscene, MEMORY_TAG_SCENE);
 	scene->state = KSCENE_STATE_UNINITIALIZED;
@@ -389,6 +404,7 @@ struct kscene* kscene_create(const char* config, PFN_scene_loaded loaded_callbac
 	scene->directional_light = KLIGHT_INVALID;
 	scene->loaded_callback = loaded_callback;
 	scene->load_context = load_context;
+	scene->scene_asset_name = scene_asset_name;
 
 	if (!bvh_create(0, scene, &scene->bvh_tree)) {
 		KERROR("Failed to create BVH");
@@ -442,14 +458,21 @@ struct kscene* kscene_create(const char* config, PFN_scene_loaded loaded_callbac
 	debug_grid_initialize(&scene->grid);
 	debug_grid_load(&scene->grid);
 
+	// Enable general debug if editor mode
+	if (is_editor) {
+		FLAG_SET(scene->flags, KSCENE_FLAG_DEBUG_ENABLED_BIT, true);
+		FLAG_SET(scene->flags, KSCENE_FLAG_DEBUG_BVH_ENABLED_BIT, false);
+		FLAG_SET(scene->flags, KSCENE_FLAG_DEBUG_GRID_ENABLED_BIT, true);
+	}
 #endif
 
-#if KOHI_DEBUG
-	// Enable general debug
-	FLAG_SET(scene->flags, KSCENE_FLAG_DEBUG_ENABLED_BIT, true);
-	FLAG_SET(scene->flags, KSCENE_FLAG_DEBUG_BVH_ENABLED_BIT, false);
-	FLAG_SET(scene->flags, KSCENE_FLAG_DEBUG_GRID_ENABLED_BIT, true);
-#endif
+	// Enable rendering everything by default.
+	FLAG_SET(scene->flags, KSCENE_FLAG_RENDER_SKYBOX_BIT, true);
+	FLAG_SET(scene->flags, KSCENE_FLAG_RENDER_STATIC_MODELS_BIT, true);
+	FLAG_SET(scene->flags, KSCENE_FLAG_RENDER_ANIMATED_MODELS_BIT, true);
+	FLAG_SET(scene->flags, KSCENE_FLAG_RENDER_HF_TERRAIN_BIT, true);
+	FLAG_SET(scene->flags, KSCENE_FLAG_RENDER_WATER_PLANES_BIT, true);
+	FLAG_SET(scene->flags, KSCENE_FLAG_RENDER_FOG_BIT, true);
 
 	scene->root_entities = darray_create(kentity);
 
@@ -478,13 +501,6 @@ struct kscene* kscene_create(const char* config, PFN_scene_loaded loaded_callbac
 	scene->debug_datas = darray_reserve(kscene_debug_data, 64);
 #endif
 
-// Default flags.
-#if KOHI_DEBUG
-	// Enable debug displays by default.
-	kscene_enable_debug(scene, true);
-	kscene_enable_debug_grid(scene, true);
-#endif
-
 	scene->name_lookup = KNULL;
 
 	// Create a camera to be used for reflections. Its properties don't matter much for now.
@@ -497,6 +513,17 @@ struct kscene* kscene_create(const char* config, PFN_scene_loaded loaded_callbac
 	if (!deserialize(config, scene)) {
 		KERROR("Scene deserialization failed. See logs for details.");
 		return KNULL;
+	}
+
+	scene->hf_terrain_asset_name = string_format("%k_terrain", scene->scene_asset_name);
+
+	// FIXME: use async instead
+	kasset_hf_terrain* terrain_asset = asset_system_request_hf_terrain_sync(engine_systems_get()->asset_state, scene->hf_terrain_asset_name);
+	if (!terrain_asset) {
+		scene->hf = hf_terrain_generate(2, 2);
+	} else {
+		scene->hf = hf_terrain_create_from_asset(terrain_asset);
+		asset_system_release_hf_terrain(engine_systems_get()->asset_state, terrain_asset);
 	}
 
 	return scene;
@@ -631,6 +658,11 @@ void kscene_destroy(struct kscene* scene) {
 	scene->bvh_debug_pool = KNULL;
 	scene->bvh_debug_vertex_pool = KNULL;
 	scene->bvh_debug_pool_size = 0;
+
+	// HACK: move this to a proper location.
+	hf_terrain_destroy(&scene->hf);
+
+	string_free(scene->hf_terrain_asset_name);
 
 #endif
 
@@ -903,9 +935,15 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 		frame_allocator_int* frame_allocator = &p_frame_data->allocator;
 		kforward_renderer_render_data* render_data = p_frame_data->render_data;
 
-		render_data->forward_data.fog_colour = scene->fog_colour;
-		render_data->forward_data.fog_near = scene->fog_near;
-		render_data->forward_data.fog_far = scene->fog_far;
+		if (FLAG_GET(scene->flags, KSCENE_FLAG_RENDER_FOG_BIT)) {
+			render_data->forward_data.fog_colour = scene->fog_colour;
+			render_data->forward_data.fog_near = scene->fog_near;
+			render_data->forward_data.fog_far = scene->fog_far;
+		} else {
+			render_data->forward_data.fog_colour = vec4_zero();
+			render_data->forward_data.fog_near = 0.0f;
+			render_data->forward_data.fog_far = 99999999.9f;
+		}
 
 		// "Global" items used by multiple passes.
 		mat4 view = kcamera_get_view(current_camera);
@@ -915,12 +953,14 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 		rect_2di vp_rect = kcamera_get_vp_rect(current_camera);
 		f32 fov = kcamera_get_fov(current_camera);
 
-		f32 near = kcamera_get_near_clip(current_camera);
-		f32 far = scene->shadow_dist + scene->shadow_fade_dist;
-		f32 clip_range = far - near;
+		f32 near_clip = kcamera_get_near_clip(current_camera);
+		f32 far_clip = kcamera_get_far_clip(current_camera);
+		// Ensure the shadow map isn't including things the camera can't see.
+		f32 shadow_far = KMIN(scene->shadow_dist + scene->shadow_fade_dist, far_clip);
+		f32 clip_range = shadow_far - near_clip;
 
-		f32 min_z = near;
-		f32 max_z = near + clip_range;
+		f32 min_z = near_clip;
+		f32 max_z = near_clip + clip_range;
 		f32 range = max_z - min_z;
 		f32 ratio = max_z / min_z;
 		// Calculate cascade splits based on view camera frustum.
@@ -929,8 +969,8 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 			f32 p = (c + 1) / (f32)KMATERIAL_MAX_SHADOW_CASCADES;
 			f32 log = min_z * kpow(ratio, p);
 			f32 uniform = min_z + range * p;
-			f32 d = render_data->forward_data.shadow_split_mult * (log - uniform) + uniform;
-			splits.elements[c] = (d - near) / clip_range;
+			f32 d = scene->shadow_split_mult * (log - uniform) + uniform;
+			splits.elements[c] = (d - near_clip) / clip_range;
 		}
 		// Default values to use in the event there is no directional light.
 		// These are required because the scene pass needs them.
@@ -958,7 +998,7 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 			vec3 light_dir = vec3_normalized(dir_light.direction);
 
 			// Get the view-projection matrix
-			mat4 shadow_dist_projection = mat4_perspective(fov, (f32)vp_rect.width / vp_rect.height, near, far);
+			mat4 shadow_dist_projection = mat4_perspective(fov, (f32)vp_rect.width / vp_rect.height, near_clip, shadow_far);
 			mat4 cam_view_proj = mat4_transposed(mat4_mul(view, shadow_dist_projection));
 			mat4 inv_view_proj = mat4_inverse(cam_view_proj);
 
@@ -1048,6 +1088,12 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 
 				last_split_dist = split_dist;
 			}
+
+			render_data->shadow_data.hf_terrain_data = kscene_get_hf_terrain_render_data(
+				scene,
+				p_frame_data,
+				KNULL, // FIXME: frustum culling disabled for now.
+				KSCENE_RENDER_DATA_FLAG_NONE);
 
 			// Gather the geometries to be rendered.
 			// Note that this only needs to happen once, since all geometries visible by the furthest-out cascase
@@ -1179,19 +1225,26 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 
 			render_data->forward_data.render_mode = render_mode;
 			render_data->forward_data.shadow_bias = scene->shadow_bias;
-			render_data->forward_data.shadow_distance = scene->shadow_dist;
+			// Ensure the shadow doesn't exceed the camera.
+			render_data->forward_data.shadow_distance = shadow_far; // scene->shadow_dist;
 			render_data->forward_data.shadow_fade_distance = scene->shadow_fade_dist;
 			render_data->forward_data.shadow_split_mult = scene->shadow_split_mult;
+			render_data->forward_data.near_clip = near_clip;
+			render_data->forward_data.far_clip = far_clip;
 
 			// SKYBOX
 			render_data->forward_data.skybox = kscene_get_skybox_render_data(scene);
+			render_data->forward_data.skybox.do_pass = FLAG_GET(scene->flags, KSCENE_FLAG_RENDER_SKYBOX_BIT);
 
 			// Pass over shadow map "camera" view and projection matrices (one per cascade).
 			for (u32 c = 0; c < render_data->shadow_data.cascade_count; c++) {
-				render_data->forward_data.cascade_splits[c] = (near + splits.elements[c] * clip_range) * 1.0f;
+				render_data->forward_data.cascade_splits[c] = (near_clip + splits.elements[c] * clip_range) * 1.0f;
 				render_data->forward_data.directional_light_spaces[c] = shadow_camera_view_projections[c];
 			}
 
+			for (u32 i = 0; i < KMATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT; ++i) {
+				render_data->forward_data.irradiance_cubemap_textures[i] = INVALID_KTEXTURE;
+			}
 			// HACK: use the skybox cubemap as the irradiance texture for now.
 			ktexture sb_texture = render_data->forward_data.skybox.skybox_texture;
 			render_data->forward_data.irradiance_cubemap_texture_count = 1;
@@ -1269,6 +1322,13 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 				p_frame_data->drawn_mesh_count += render_data->forward_data.standard_pass.terrains[i].chunk_count;
 			}
 
+			// Heightfield Terrain
+			render_data->forward_data.standard_pass.hf_terrain_data = kscene_get_hf_terrain_render_data(
+				scene,
+				p_frame_data,
+				KNULL, // FIXME: frustum culling disabled for now
+				KSCENE_RENDER_DATA_FLAG_NONE);
+
 			// Obtain the water plane render datas and setup pass data for each.
 			kwater_plane_render_data* water_planes = kscene_get_water_plane_render_data(
 				scene,
@@ -1304,6 +1364,9 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 						// Heightmap terrain.
 						wp_data->refraction_pass.terrain_count = render_data->forward_data.standard_pass.terrain_count;
 						wp_data->refraction_pass.terrains = render_data->forward_data.standard_pass.terrains;
+
+						// Heightfield terrain
+						wp_data->refraction_pass.hf_terrain_data = render_data->forward_data.standard_pass.hf_terrain_data;
 					}
 
 					// reflection pass data
@@ -1361,6 +1424,13 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 							0, // FIXME: frustum culling disabled for now.
 							0,
 							&wp_data->reflection_pass.terrain_count);
+
+						// Heightfield Terrain
+						wp_data->reflection_pass.hf_terrain_data = kscene_get_hf_terrain_render_data(
+							scene,
+							p_frame_data,
+							KNULL, // FIXME: frustum culling disabled for now
+							KSCENE_RENDER_DATA_FLAG_NONE);
 					}
 				}
 			} // end water planes
@@ -1465,7 +1535,7 @@ kscene_flags kscene_get_flags(const struct kscene* scene) {
 	return scene->flags;
 }
 b8 kscene_get_flag(const struct kscene* scene, kscene_flag_bits flag) {
-	return FLAG_GET(scene->flags, flag);
+	return FLAG_GET(scene->flags, (u32)flag);
 }
 void kscene_set_flags(struct kscene* scene, kscene_flags flags) {
 	scene->flags = flags;
@@ -1484,10 +1554,10 @@ void kscene_set_name(struct kscene* scene, const char* name) {
 	scene->name = string_duplicate(name);
 }
 
-vec3 kscene_get_fog_colour(const struct kscene* scene) {
+colour4 kscene_get_fog_colour(const struct kscene* scene) {
 	return scene->fog_colour;
 }
-void kscene_set_fog_colour(struct kscene* scene, colour3 colour) {
+void kscene_set_fog_colour(struct kscene* scene, colour4 colour) {
 	scene->fog_colour = colour;
 }
 f32 kscene_get_fog_near(const struct kscene* scene) {
@@ -1503,16 +1573,17 @@ void kscene_set_fog_far(struct kscene* scene, f32 far) {
 	scene->fog_far = far;
 }
 
-void kscene_set_active_camera(struct kscene* scene, kcamera camera) {
-	// FIXME: implement this
-}
-
 void kscene_get_shadow_properties(
 	struct kscene* scene,
+	kcamera current_camera,
 	f32* out_shadow_dist,
 	f32* out_shadow_fade_distance,
 	f32* out_shadow_split_mult,
 	f32* out_shadow_bias) {
+
+	f32 far_clip = kcamera_get_far_clip(current_camera);
+	// Ensure the shadow map isn't including things the camera can't see.
+	*out_shadow_dist = KMIN(scene->shadow_dist + scene->shadow_fade_dist, far_clip);
 	*out_shadow_dist = scene->shadow_dist;
 	*out_shadow_fade_distance = scene->shadow_fade_dist;
 	*out_shadow_split_mult = scene->shadow_split_mult;
@@ -1525,7 +1596,7 @@ static b8 raycast_hits_sphere(const char* type_str, ktransform transform, f32 ra
 
 	vec3 point;
 	f32 dist;
-	KDEBUG("Ray hits sphere test. radius=%f", radius);
+	/* KDEBUG("Ray hits sphere test. radius=%f", radius); */
 	if (ray_intersects_sphere(r, pos, radius, &point, &dist)) {
 		if (out_hit) {
 			out_hit->type = RAYCAST_HIT_TYPE_SURFACE;
@@ -1534,11 +1605,11 @@ static b8 raycast_hits_sphere(const char* type_str, ktransform transform, f32 ra
 			out_hit->normal = vec3_normalized(vec3_sub(point, pos));
 		}
 
-		KDEBUG("More specific %s hit info acquired. Using it.", type_str);
+		/* KDEBUG("More specific %s hit info acquired. Using it.", type_str); */
 		return true;
 	} else {
 		// If it doesn't hit, disqualify it.
-		KDEBUG("Hit the BVH node, but not the contained %s sphere. Hit does not count.", type_str);
+		/* KDEBUG("Hit the BVH node, but not the contained %s sphere. Hit does not count.", type_str); */
 		return false;
 	}
 }
@@ -1562,20 +1633,20 @@ static b8 on_raycast_hit(bvh_userdata user, bvh_id id, const ray* r, f32 min, f3
 
 		// Within the model, check to see if the raycast hits it as well.
 		if (kmodel_ray_intersects(engine_systems_get()->model_system, typed->model, r, world, out_hit)) {
-			KDEBUG("More specific model hit info acquired (name='%s'). Using it.", name);
+			/* KDEBUG("More specific model hit info acquired (name='%s'). Using it.", name); */
 			return true;
 		} else {
 			// If it doesn't hit, disqualify it.
-			KDEBUG("Hit the BVH node (name='%s'), but not the contained mesh. Hit does not count.", name);
+			/* KDEBUG("Hit the BVH node (name='%s'), but not the contained mesh. Hit does not count.", name); */
 			return false;
 		}
 	} break;
 	case KENTITY_TYPE_HEIGHTMAP_TERRAIN:
-		KINFO("Hit a heightmap terrain entity named '%s'", name);
+		/* KINFO("Hit a heightmap terrain entity named '%s'", name); */
 
 		return false;
 	case KENTITY_TYPE_WATER_PLANE: {
-		KINFO("Hit a water plane entity named '%s'", name);
+		/* KINFO("Hit a water plane entity named '%s'", name); */
 
 		mat4 world_inv = mat4_inverse(world);
 
@@ -1602,7 +1673,7 @@ static b8 on_raycast_hit(bvh_userdata user, bvh_id id, const ray* r, f32 min, f3
 				out_hit->normal = normal;
 			}
 
-			KDEBUG("More specific water plane hit info acquired. Using it.");
+			/* KDEBUG("More specific water plane hit info acquired. Using it."); */
 			return true;
 		}
 	} break;
@@ -1646,7 +1717,7 @@ static b8 on_raycast_hit(bvh_userdata user, bvh_id id, const ray* r, f32 min, f3
 	} break;
 	default:
 	case KENTITY_TYPE_NONE:
-		KINFO("Base node found. No further tests needed.");
+		/* KINFO("Base node found. No further tests needed."); */
 		// This will allow the hit to be counted.
 		out_hit->type = RAYCAST_HIT_TYPE_BVH_AABB_BASE_NODE;
 		return true;
@@ -1666,6 +1737,59 @@ b8 kscene_raycast(struct kscene* scene, const ray* r, struct raycast_result* out
 		return true;
 	}
 	return false;
+}
+
+b8 kscene_hf_terrain_raycast(struct kscene* scene, const ray* r, b8 use_editor_aabb, hf_block* out_block, hf_chunk* out_chunk, vec3* out_pos, vec3* out_normal) {
+	// FIXME: brute forcing this for now, will handle better in the future.
+
+	if (!scene || !scene->hf.blocks) {
+		return false;
+	}
+
+	u32 block_count = scene->hf.block_count_z * scene->hf.block_count_x;
+	for (u32 b = 0; b < block_count; ++b) {
+		hf_block* block = &scene->hf.blocks[b];
+
+		f32 tmin = 0.0f;
+		f32 tmaxi = r->max_distance;
+		b8 block_hit = ray_intersects_aabb(use_editor_aabb ? block->editor_aabb : block->aabb, r->origin, r->direction, r->max_distance, &tmin, &tmaxi);
+		if (block_hit) {
+			// Iterate the chunks and check for a aabb hit there.
+			for (u32 c = 0; c < HF_BLOCK_CHUNK_COUNT; ++c) {
+				hf_chunk* chunk = &block->chunks[c];
+				tmin = 0.0f;
+				tmaxi = r->max_distance;
+				b8 chunk_hit = ray_intersects_aabb(use_editor_aabb ? chunk->editor_aabb : chunk->aabb, r->origin, r->direction, r->max_distance, &tmin, &tmaxi);
+				if (chunk_hit) {
+					u64 vertex_offset = (chunk->vertex_buffer_offset - scene->hf.base_vertex_buffer_offset) / sizeof(hf_vertex_3d);
+					triangle tri;
+					vec3 hit_pos;
+					vec3 hit_normal;
+					b8 triangle_hit = ray_pick_triangle(r, false, HF_CHUNK_VERTEX_COUNT, sizeof(hf_vertex_3d), scene->hf.vertices + vertex_offset, HF_INDEX_COUNT, scene->hf.indices, &tri, &hit_pos, &hit_normal);
+					if (triangle_hit) {
+						// Collision! Yay
+						/* KTRACE("Terrain hit: pos=%V3.3, normal=%V3.3", &hit_pos, &hit_normal); */
+						*out_block = *block;
+						*out_chunk = *chunk;
+						*out_pos = hit_pos;
+						*out_normal = hit_normal;
+						return true;
+					}
+				}
+			}
+		}
+	}
+
+	/* KTRACE("Nothing hit."); */
+	return false;
+}
+
+hf_terrain* kscene_hf_terrain_get(struct kscene* scene) {
+	return &scene->hf;
+}
+
+b8 kscene_hf_terrain_get_height_at(struct kscene* scene, f32 world_x, f32 world_z, vec3* out_pos, vec3* out_normal) {
+	return hf_terrain_get_height_at(&scene->hf, world_x, world_z, out_pos, out_normal);
 }
 
 kentity kscene_get_entity_by_name(struct kscene* scene, kname name) {
@@ -1839,50 +1963,42 @@ void kscene_remove_entity(struct kscene* scene, kentity* entity) {
 		switch (type) {
 
 		case KENTITY_TYPE_NONE: {
-			u16 len = darray_length(scene->bases);
-			KASSERT_DEBUG(typed_index < len);
+			KASSERT_DEBUG(typed_index < darray_length(scene->bases));
 			base_entity_destroy(scene, &scene->bases[typed_index], *entity);
 		} break;
 
 		case KENTITY_TYPE_MODEL: {
-			u16 len = darray_length(scene->models);
-			KASSERT_DEBUG(typed_index < len);
+			KASSERT_DEBUG(typed_index < darray_length(scene->models));
 			model_entity_destroy(scene, &scene->models[typed_index], *entity);
 		} break;
 
 		case KENTITY_TYPE_POINT_LIGHT: {
-			u16 len = darray_length(scene->point_lights);
-			KASSERT_DEBUG(typed_index < len);
+			KASSERT_DEBUG(typed_index < darray_length(scene->point_lights));
 			point_light_entity_destroy(scene, &scene->point_lights[typed_index], *entity);
 		} break;
 
 		case KENTITY_TYPE_SPAWN_POINT: {
-			u16 len = darray_length(scene->spawn_points);
-			KASSERT_DEBUG(typed_index < len);
+			KASSERT_DEBUG(typed_index < darray_length(scene->spawn_points));
 			spawn_point_entity_destroy(scene, &scene->spawn_points[typed_index], *entity);
 		} break;
 
 		case KENTITY_TYPE_VOLUME: {
-			u16 len = darray_length(scene->volumes);
-			KASSERT_DEBUG(typed_index < len);
+			KASSERT_DEBUG(typed_index < darray_length(scene->volumes));
 			volume_entity_destroy(scene, &scene->volumes[typed_index], *entity);
 		} break;
 
 		case KENTITY_TYPE_HIT_SHAPE: {
-			u16 len = darray_length(scene->hit_shapes);
-			KASSERT_DEBUG(typed_index < len);
+			KASSERT_DEBUG(typed_index < darray_length(scene->hit_shapes));
 			hit_shape_entity_destroy(scene, &scene->hit_shapes[typed_index], *entity);
 		} break;
 
 		case KENTITY_TYPE_WATER_PLANE: {
-			u16 len = darray_length(scene->water_planes);
-			KASSERT_DEBUG(typed_index < len);
+			KASSERT_DEBUG(typed_index < darray_length(scene->water_planes));
 			water_plane_entity_destroy(scene, &scene->water_planes[typed_index], *entity);
 		} break;
 
 		case KENTITY_TYPE_AUDIO_EMITTER: {
-			u16 len = darray_length(scene->audio_emitters);
-			KASSERT_DEBUG(typed_index < len);
+			KASSERT_DEBUG(typed_index < darray_length(scene->audio_emitters));
 			audio_emitter_entity_destroy(scene, &scene->audio_emitters[typed_index], *entity);
 		} break;
 
@@ -2013,10 +2129,12 @@ static void base_entity_destroy(kscene* scene, base_entity* base, kentity entity
 	ktransform_destroy(&base->transform);
 
 	// Cleaup debug data.
+#if KOHI_DEBUG
 	if (base->debug_data_index != INVALID_ID_U32) {
 		renderer_geometry_destroy(&scene->debug_datas[base->debug_data_index].geometry);
 		base->debug_data_index = INVALID_ID_U32;
 	}
+#endif
 
 	// Flag as free
 	FLAG_SET(base->flags, KENTITY_FLAG_FREE_BIT, true);
@@ -2135,9 +2253,15 @@ kentity kscene_add_point_light(struct kscene* scene, kname name, ktransform tran
 	new_ent->base.extents.min = (vec3){-r, -r, -r};
 	new_ent->base.extents.max = (vec3){r, r, r};
 
-	vec3 size = extents_3d_half(new_ent->base.extents);
-
-	create_debug_data(scene, size, vec3_zero(), entity, kSCENE_DEBUG_DATA_TYPE_SPHERE, (vec4){new_ent->colour.r, new_ent->colour.g, new_ent->colour.b, 1}, true, &new_ent->base.debug_data_index);
+	create_debug_data(
+		scene,
+		extents_3d_half(new_ent->base.extents),
+		vec3_zero(),
+		entity,
+		KSCENE_DEBUG_DATA_TYPE_SPHERE,
+		((colour4){new_ent->colour.r, new_ent->colour.g, new_ent->colour.b, 1}),
+		true,
+		&new_ent->base.debug_data_index);
 
 	return entity;
 }
@@ -2177,7 +2301,7 @@ kentity kscene_add_spawn_point(struct kscene* scene, kname name, ktransform tran
 
 	new_ent->radius = radius;
 
-	create_debug_data(scene, vec3_from_scalar(radius), vec3_zero(), entity, kSCENE_DEBUG_DATA_TYPE_SPHERE, (vec4){0, 0, 1, 1}, true, &new_ent->base.debug_data_index);
+	create_debug_data(scene, vec3_from_scalar(radius), vec3_zero(), entity, KSCENE_DEBUG_DATA_TYPE_SPHERE, ((colour4){0, 0, 1, 1}), true, &new_ent->base.debug_data_index);
 
 	return entity;
 }
@@ -2245,18 +2369,7 @@ kentity kscene_add_volume(
 		new_ent->on_tick_command = string_duplicate(on_tick_command);
 	}
 
-	kscene_debug_data_type debug_type;
-	switch (new_ent->shape.shape_type) {
-	case KSHAPE_TYPE_SPHERE:
-		debug_type = kSCENE_DEBUG_DATA_TYPE_SPHERE;
-		break;
-	case KSHAPE_TYPE_RECTANGLE:
-		debug_type = kSCENE_DEBUG_DATA_TYPE_RECTANGLE;
-		break;
-	}
-
-	vec3 size = extents_3d_half(new_ent->base.extents);
-	create_debug_data(scene, size, vec3_zero(), entity, debug_type, ENTITY_VOLUME_DEBUG_COLOUR, true, &new_ent->base.debug_data_index);
+	create_debug_data(scene, extents_3d_half(new_ent->base.extents), vec3_zero(), entity, debug_type_from_shape_type(new_ent->shape.shape_type), ENTITY_VOLUME_DEBUG_COLOUR, true, &new_ent->base.debug_data_index);
 
 	return entity;
 }
@@ -2521,8 +2634,7 @@ kentity kscene_add_audio_emitter(
 	vec3 emitter_world_pos = mat4_position(world);
 	kaudio_emitter_world_position_set(engine_systems_get()->audio_system, new_ent->emitter, emitter_world_pos);
 
-	vec3 size = extents_3d_half(new_ent->base.extents);
-	create_debug_data(scene, size, vec3_zero(), entity, kSCENE_DEBUG_DATA_TYPE_SPHERE, ENTITY_AUDIO_EMITTER_DEBUG_COLOUR, true, &new_ent->base.debug_data_index);
+	create_debug_data(scene, extents_3d_half(new_ent->base.extents), vec3_zero(), entity, KSCENE_DEBUG_DATA_TYPE_SPHERE, ENTITY_AUDIO_EMITTER_DEBUG_COLOUR, true, &new_ent->base.debug_data_index);
 
 	return entity;
 }
@@ -2532,19 +2644,6 @@ static void audio_emitter_entity_destroy(kscene* scene, audio_emitter_entity* ty
 
 	base_entity_destroy(scene, &typed_entity->base, entity_handle);
 }
-
-#if KOHI_DEBUG
-void kscene_enable_debug(struct kscene* scene, b8 enabled) {
-	if (scene) {
-		FLAG_SET(scene->flags, KSCENE_FLAG_DEBUG_ENABLED_BIT, enabled);
-	}
-}
-void kscene_enable_debug_grid(struct kscene* scene, b8 enabled) {
-	if (scene) {
-		FLAG_SET(scene->flags, KSCENE_FLAG_DEBUG_GRID_ENABLED_BIT, enabled);
-	}
-}
-#endif
 
 kmodel_instance kscene_model_entity_get_instance(struct kscene* scene, kentity entity) {
 	u16 type_index = kentity_unpack_type_index(entity);
@@ -2698,6 +2797,88 @@ hm_terrain_render_data* kscene_get_hm_terrain_render_data(
 	return 0;
 }
 
+hf_terrain_render_data kscene_get_hf_terrain_render_data(
+	struct kscene* scene,
+	struct frame_data* p_frame_data,
+	kfrustum* frustum,
+	u32 flags) {
+
+	hf_terrain_render_data data = {0};
+
+	const hf_terrain* t = &scene->hf;
+
+	data.index_count = HF_INDEX_COUNT;
+	data.index_buffer_offset = t->index_buffer_offset;
+	data.block_count = t->block_count_z * t->block_count_x;
+	data.blocks = p_frame_data->allocator.allocate(sizeof(hf_terrain_block_render_data) * data.block_count);
+
+	// Array textures.
+	data.albedo_texture_array = t->albedo_texture_array;
+	data.normal_texture_array = t->normal_texture_array;
+	data.mra_texture_array = t->mra_texture_array;
+
+	// TODO: frustum culling.
+	for (u16 i = 0; i < data.block_count; ++i) {
+		// TODO: frustum cull the block
+		hf_block* block = &t->blocks[i];
+		hf_terrain_block_render_data* block_rd = &data.blocks[i];
+
+		block_rd->chunk_count = HF_BLOCK_CHUNK_COUNT;
+		block_rd->chunks = p_frame_data->allocator.allocate(sizeof(hf_terrain_chunk_render_data) * block_rd->chunk_count);
+		block_rd->splatmap = block->splatmap;
+		block_rd->shader_instance_id = block->shader_instance_id;
+
+		// TODO: frustum culling within this block
+		for (u16 c = 0; c < block_rd->chunk_count; ++c) {
+			hf_chunk* chunk = &block->chunks[c];
+			hf_terrain_chunk_render_data* chunk_rd = &block_rd->chunks[c];
+
+			// TODO: LOD
+			chunk_rd->vertex_count = HF_CHUNK_VERTEX_COUNT;
+			chunk_rd->vertex_buffer_offset = chunk->vertex_buffer_offset;
+
+			chunk_rd->base_material_index = chunk->material_indices[0];
+			for (u8 a = 0; a < HF_TERRAIN_CHUNK_MAX_MATERIALS - 1; ++a) {
+				chunk_rd->material_indices.elements[a] = chunk->material_indices[a + 1];
+			}
+
+			// FIXME: Pick the closest lights that actually interact with this geometry and add them
+			// to the list. For now this is just adding the closest 8.
+			chunk_rd->bound_point_light_count = KMIN(darray_length(scene->point_lights), KMATERIAL_MAX_BOUND_POINT_LIGHTS);
+			for (u8 l = 0; l < chunk_rd->bound_point_light_count; ++l) {
+				// TODO: distance check.
+				chunk_rd->bound_point_light_indices[l] = scene->point_lights[l].handle;
+			}
+		}
+	}
+
+	return data;
+}
+
+hf_terrain_material_data* kscene_get_hf_terrain_materials(struct kscene* scene, u8* out_count) {
+	if (!scene || !out_count || !scene->hf.vertices) {
+		return KNULL;
+	}
+
+	hf_terrain_material_data* materials = KALLOC_TYPE_CARRAY(hf_terrain_material_data, scene->hf.material_count);
+	*out_count = scene->hf.material_count;
+
+	for (u8 i = 0; i < (*out_count); ++i) {
+		materials[i].name = scene->hf.material_names[i];
+
+		materials[i].albedo_asset_name = scene->hf.albedo_asset_names[i];
+		materials[i].albedo_asset_package_name = scene->hf.albedo_package_names[i];
+
+		materials[i].normal_asset_name = scene->hf.normal_asset_names[i];
+		materials[i].normal_asset_package_name = scene->hf.normal_package_names[i];
+
+		materials[i].mra_asset_name = scene->hf.mra_asset_names[i];
+		materials[i].mra_asset_package_name = scene->hf.mra_package_names[i];
+	}
+
+	return materials;
+}
+
 #if KOHI_DEBUG
 kdebug_geometry_render_data* kscene_get_debug_render_data(
 	struct kscene* scene,
@@ -2733,7 +2914,7 @@ kdebug_geometry_render_data* kscene_get_debug_render_data(
 	i16 rd_idx = 0;
 	for (u16 i = 0; i < debug_data_count; ++i) {
 		kscene_debug_data* data = &scene->debug_datas[i];
-		if (data->type != kSCENE_DEBUG_DATA_TYPE_NONE) {
+		if (data->type != KSCENE_DEBUG_DATA_TYPE_NONE) {
 			kdebug_geometry_render_data* rd = &out_render_data[rd_idx];
 			rd->geo.index_count = data->geometry.index_count;
 			rd->geo.index_offset = data->geometry.index_buffer_offset;
@@ -2923,7 +3104,9 @@ static kentity init_base_entity_with_extents(kscene* scene, base_entity* base, u
 
 	base->bvh_id = bvh_insert(&scene->bvh_tree, b, entity);
 
+#if KOHI_DEBUG
 	base->debug_data_index = INVALID_ID_U32;
+#endif
 
 	return entity;
 }
@@ -3103,6 +3286,7 @@ static void map_model_entity_geometries(kscene* scene, kentity entity) {
 		// Map the submesh geometries to the material.
 		map_model_submesh_geometries(scene, entity, g, winding_inverted, mat_inst);
 	}
+#if KOHI_DEBUG
 	vec3 center = extents_3d_center(base->extents);
 
 	// Debug data can be created at this point.
@@ -3112,10 +3296,14 @@ static void map_model_entity_geometries(kscene* scene, kentity entity) {
 		size,
 		center,
 		entity,
-		kSCENE_DEBUG_DATA_TYPE_RECTANGLE,
+		KSCENE_DEBUG_DATA_TYPE_RECTANGLE,
 		is_animated ? ENTITY_MODEL_ANIMATED_DEBUG_COLOUR : ENTITY_MODEL_STATIC_DEBUG_COLOUR,
 		false,
 		&base->debug_data_index);
+#else
+	if (is_animated) {
+	}
+#endif
 }
 
 static void unmap_model_entity_geometries(kscene* scene, kentity entity) {
@@ -3499,8 +3687,8 @@ static b8 deserialize(const char* file_content, kscene* out_scene) {
 	kson_object_property_value_get_float(&tree.root, "shadow_bias", &out_scene->shadow_bias);
 
 	// Fog settings.
-	out_scene->fog_colour = (colour3){1, 1, 1};
-	kson_object_property_value_get_vec3(&tree.root, "fog_colour", &out_scene->fog_colour);
+	out_scene->fog_colour = (colour4){1, 1, 1, 1};
+	kson_object_property_value_get_vec4(&tree.root, "fog_colour", &out_scene->fog_colour);
 	out_scene->fog_near = 10.0f;
 	kson_object_property_value_get_float(&tree.root, "fog_near", &out_scene->fog_near);
 	out_scene->fog_far = 1000.0f;
@@ -3692,7 +3880,7 @@ const char* kscene_serialize(const kscene* scene) {
 	kson_object_value_add_float(&tree.root, "shadow_bias", scene->shadow_bias);
 
 	// Fog settings.
-	kson_object_value_add_vec3(&tree.root, "fog_colour", scene->fog_colour);
+	kson_object_value_add_vec4(&tree.root, "fog_colour", scene->fog_colour);
 	kson_object_value_add_float(&tree.root, "fog_near", scene->fog_near);
 	kson_object_value_add_float(&tree.root, "fog_far", scene->fog_far);
 
@@ -3711,6 +3899,63 @@ const char* kscene_serialize(const kscene* scene) {
 	const char* output = kson_tree_to_string(&tree);
 	kson_tree_cleanup(&tree);
 	return output;
+}
+
+b8 kscene_hf_terrain_save(const struct kscene* scene) {
+	if (!scene) {
+		return false;
+	}
+	if (!scene->hf.vertices) {
+		// Nothing to save. Return true, as this isn't always an error?
+		return true;
+	}
+
+	kasset_hf_terrain asset = {
+		.vertex_count = scene->hf.vertex_count,
+		.block_count_x = scene->hf.block_count_x,
+		.block_count_z = scene->hf.block_count_z,
+		.material_count = scene->hf.material_count,
+		.version = 0x0001};
+
+	asset.vertices = KALLOC_TYPE_CARRAY(kasset_hf_terrain_vertex, asset.vertex_count);
+	for (u32 i = 0; i < asset.vertex_count; ++i) {
+		asset.vertices[i].y_offset = scene->hf.vertices[i].position.y;
+	}
+
+	u32 block_count = asset.block_count_x * asset.block_count_z;
+	asset.blocks = KALLOC_TYPE_CARRAY(kasset_hf_terrain_block, block_count);
+	for (u32 i = 0; i < block_count; ++i) {
+		hf_block* block = &scene->hf.blocks[i];
+		kasset_hf_terrain_block* asset_block = &asset.blocks[i];
+
+		asset_block->splatmap_size_x = HF_TERRAIN_SPLATMAP_RESOLUTION;
+		asset_block->splatmap_size_y = HF_TERRAIN_SPLATMAP_RESOLUTION;
+		kcopy_memory(asset_block->splatmap_pixels, block->splatmap_pixels, KASSET_HF_SPLAT_RES * KASSET_HF_SPLAT_RES * 4);
+
+		for (u32 c = 0; c < 256; ++c) {
+			hf_chunk* chunk = &block->chunks[c];
+			kasset_hf_terrain_chunk* asset_chunk = &asset_block->chunks[c];
+
+			for (u8 m = 0; m < HF_TERRAIN_CHUNK_MAX_MATERIALS; ++m) {
+				asset_chunk->material_indices[m] = chunk->material_indices[m];
+			}
+		}
+	}
+
+	asset.material_names = KALLOC_TYPE_CARRAY(const char*, asset.material_count);
+	asset.material_map_names = KALLOC_TYPE_CARRAY(kasset_hf_terrain_material_map_names, asset.material_count);
+	asset.materials = KALLOC_TYPE_CARRAY(kasset_hf_terrain_material, asset.material_count);
+	for (u32 i = 0; i < scene->hf.material_count; ++i) {
+		asset.material_map_names[i].albedo_str = kname_string_get(scene->hf.albedo_asset_names[i]);
+		asset.material_map_names[i].normal_str = kname_string_get(scene->hf.normal_asset_names[i]);
+		asset.material_map_names[i].mra_str = kname_string_get(scene->hf.mra_asset_names[i]);
+		asset.material_names[i] = kstring_id_string_get(scene->hf.material_names[i]);
+	}
+
+	u64 asset_size = 0;
+	void* data = kasset_hf_terrain_serialize(&asset, &asset_size);
+
+	return asset_system_write_binary(engine_systems_get()->asset_state, INVALID_KNAME, kname_create(scene->hf_terrain_asset_name), asset_size, data);
 }
 
 static void kscene_dump_hierarchy_entity_r(const kscene* scene, kentity entity, u32 depth) {
@@ -3843,7 +4088,7 @@ static void create_debug_data(kscene* scene, vec3 size, vec3 center, kentity ent
 	for (u32 i = 0; i < len; ++i) {
 		// Determine if "free"
 		data = &scene->debug_datas[i];
-		if (data->type == kSCENE_DEBUG_DATA_TYPE_NONE) {
+		if (data->type == KSCENE_DEBUG_DATA_TYPE_NONE) {
 			// found a free one, use it.
 			index = i;
 			break;
@@ -3861,13 +4106,13 @@ static void create_debug_data(kscene* scene, vec3 size, vec3 center, kentity ent
 	data->type = type;
 	data->ignore_scale = ignore_scale;
 	switch (data->type) {
-	case kSCENE_DEBUG_DATA_TYPE_NONE:
+	case KSCENE_DEBUG_DATA_TYPE_NONE:
 		KWARN("Trying to create debug data of type none. Don't do that, ya dingus! Creating a box instead.");
 		// Note: intentional fall-through.
-	case kSCENE_DEBUG_DATA_TYPE_RECTANGLE:
+	case KSCENE_DEBUG_DATA_TYPE_RECTANGLE:
 		data->geometry = geometry_generate_line_box3d_typed(size, 0, KGEOMETRY_TYPE_3D_STATIC_POSITION_ONLY, center);
 		break;
-	case kSCENE_DEBUG_DATA_TYPE_SPHERE: {
+	case KSCENE_DEBUG_DATA_TYPE_SPHERE: {
 		f32 radius = KMAX(size.x, KMAX(size.y, size.z));
 		// NOTE: hardcode debug sphere resolution.
 		data->geometry = geometry_generate_line_sphere3d_typed(radius, 16, 0, KGEOMETRY_TYPE_3D_STATIC_POSITION_ONLY);
@@ -3880,6 +4125,15 @@ static void create_debug_data(kscene* scene, vec3 size, vec3 center, kentity ent
 	}
 	data->geometry.generation++;
 	*out_debug_data_index = index;
+}
+
+static kscene_debug_data_type debug_type_from_shape_type(kshape_type type) {
+	switch (type) {
+	case KSHAPE_TYPE_SPHERE:
+		return KSCENE_DEBUG_DATA_TYPE_SPHERE;
+	case KSHAPE_TYPE_RECTANGLE:
+		return KSCENE_DEBUG_DATA_TYPE_RECTANGLE;
+	}
 }
 
 #endif

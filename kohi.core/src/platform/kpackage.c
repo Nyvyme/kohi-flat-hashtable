@@ -1,5 +1,6 @@
 #include "kpackage.h"
 
+#include "assets/kasset_utils.h"
 #include "containers/darray.h"
 #include "debug/kassert.h"
 #include "defines.h"
@@ -17,6 +18,13 @@ typedef struct asset_entry {
 	// Should be populated if the asset was imported.
 	const char* source_path;
 
+	// Path relative to package.
+	const char* local_path;
+	// Source path relative to package.
+	const char* local_source_path;
+
+	kasset_type type;
+
 	// If loaded from binary, these define where the asset is in the blob.
 	u64 offset;
 	u64 size;
@@ -25,9 +33,11 @@ typedef struct asset_entry {
 typedef struct kpackage_internal {
 	// darray of all asset entries.
 	asset_entry* entries;
+
+	asset_manifest_reference* references;
 } kpackage_internal;
 
-b8 kpackage_create_from_manifest(const asset_manifest* manifest, kpackage* out_package) {
+b8 kpackage_create_from_manifest(const char* manifest_file_path, const asset_manifest* manifest, kpackage* out_package) {
 	if (!manifest || !out_package) {
 		KERROR("kpackage_create_from_manifest requires valid pointers to manifest and out_package.");
 		return false;
@@ -43,8 +53,16 @@ b8 kpackage_create_from_manifest(const asset_manifest* manifest, kpackage* out_p
 	}
 
 	out_package->is_binary = false;
+	out_package->manifest_file_path = string_duplicate(manifest_file_path);
 
 	out_package->internal_data = kallocate(sizeof(kpackage_internal), MEMORY_TAG_PACKAGE);
+
+	out_package->internal_data->references = darray_create(asset_manifest_reference);
+	u32 ref_count = darray_length(manifest->references);
+	for (u32 i = 0; i < ref_count; ++i) {
+		darray_push(out_package->internal_data->references, manifest->references[i]);
+		out_package->internal_data->references[i].path = string_duplicate(manifest->references[i].path);
+	}
 
 	// Process manifest
 	u32 asset_count = darray_length(manifest->assets);
@@ -53,9 +71,16 @@ b8 kpackage_create_from_manifest(const asset_manifest* manifest, kpackage* out_p
 
 		asset_entry new_entry = {0};
 		new_entry.name = asset->name;
+		new_entry.type = asset->type;
 		new_entry.path = string_duplicate(asset->path);
+		new_entry.local_path = string_duplicate(asset->local_path);
+		new_entry.source_path = KNULL;
 		if (asset->source_path) {
 			new_entry.source_path = string_duplicate(asset->source_path);
+		}
+		new_entry.local_source_path = KNULL;
+		if (asset->local_source_path) {
+			new_entry.local_source_path = string_duplicate(asset->local_source_path);
 		}
 		// NOTE: Size and offset don't get filled out/used with a manifest version of a package.
 
@@ -102,6 +127,29 @@ void kpackage_destroy(kpackage* package) {
 
 		kzero_memory(package, sizeof(kpackage_internal));
 	}
+}
+
+kname* kpackage_asset_names_by_type(const kpackage* package, kasset_type type, u32* out_count) {
+	u32 entry_count = darray_length(package->internal_data->entries);
+	for (u32 j = 0; j < entry_count; ++j) {
+		asset_entry* entry = &package->internal_data->entries[j];
+		if (entry->type == type) {
+			(*out_count)++;
+		}
+	}
+	kname* results = KNULL;
+	if (*out_count) {
+		results = KALLOC_TYPE_CARRAY(kname, *out_count);
+		u32 idx = 0;
+		for (u32 j = 0; j < entry_count; ++j) {
+			asset_entry* entry = &package->internal_data->entries[j];
+			if (entry->type == type) {
+				results[idx] = entry->name;
+				idx++;
+			}
+		}
+	}
+	return results;
 }
 
 static asset_entry* asset_entry_get(const kpackage* package, kname name) {
@@ -452,16 +500,21 @@ b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_ma
 
 				asset_manifest_asset asset = {0};
 				// Asset name.
-				const char* asset_name = 0;
-				if (!kson_object_property_value_get_string(&asset_obj, "name", &asset_name)) {
+				if (!kson_object_property_value_get_string_as_kname(&asset_obj, "name", &asset.name)) {
 					KWARN("Failed to get asset name at array index %u. Skipping.", i);
-					string_free(asset_name);
 					continue;
 				}
-				asset.name = kname_create(asset_name);
-				string_free(asset_name);
+
+				const char* type_str;
+				if (!kson_object_property_value_get_string(&asset_obj, "type", &type_str)) {
+					KWARN("Failed to get asset type at array index %u. Skipping.", i);
+					continue;
+				}
+				asset.type = kasset_type_from_string(type_str);
+				string_free(type_str);
 
 				// Verify that the asset name doesn't already exist in the manifest.
+				// TODO: This really only needs to be unique per asset type.
 				u32 asset_count = darray_length(out_manifest->assets);
 				for (u32 a = 0; a < asset_count; ++a) {
 					if (out_manifest->assets[a].name == asset.name) {
@@ -473,21 +526,17 @@ b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_ma
 				}
 
 				// Path
-				const char* asset_path_temp = 0;
-				if (!kson_object_property_value_get_string(&asset_obj, "path", &asset_path_temp)) {
+				if (!kson_object_property_value_get_string(&asset_obj, "path", &asset.local_path)) {
 					KWARN("Failed to get asset path at array index %u. Skipping.", i);
 					continue;
 				}
 				// Full path of the asset.
-				asset.path = string_format("%s/%s", out_manifest->path, asset_path_temp);
-				string_free(asset_path_temp);
+				asset.path = string_format("%s/%s", out_manifest->path, asset.local_path);
 
 				// Source Path - optional
-				const char* asset_source_path_temp = 0;
-				if (kson_object_property_value_get_string(&asset_obj, "source_path", &asset_source_path_temp)) {
+				if (kson_object_property_value_get_string(&asset_obj, "source_path", &asset.local_source_path)) {
 					// Full source path of the asset.
-					asset.source_path = string_format("%s/%s", out_manifest->path, asset_source_path_temp);
-					string_free(asset_source_path_temp);
+					asset.source_path = string_format("%s/%s", out_manifest->path, asset.local_source_path);
 				}
 
 				// Add to assets
@@ -535,9 +584,102 @@ void kpackage_manifest_destroy(asset_manifest* manifest) {
 				asset_manifest_asset* asset = &manifest->assets[i];
 				string_free(asset->path);
 				string_free(asset->source_path);
+				string_free(asset->local_path);
+				string_free(asset->local_source_path);
 			}
 			darray_destroy(manifest->assets);
 		}
 		kzero_memory(manifest, sizeof(asset_manifest));
 	}
 }
+
+#if KOHI_DEBUG
+b8 kpackage_add_asset(kpackage* package, const asset_manifest_asset* asset) {
+	// Add to internal asset list for the package.
+	asset_entry new_entry = {
+		.name = asset->name,
+		.type = asset->type,
+		.path = string_duplicate(asset->path),
+		.source_path = string_duplicate(asset->path),
+		.local_path = string_duplicate(asset->local_path),
+		.local_source_path = string_duplicate(asset->local_source_path),
+	};
+
+	// Push the asset to it.
+	darray_push(package->internal_data->entries, new_entry);
+
+	return true;
+}
+
+b8 kpackage_save(kpackage* package) {
+	// Create an asset manifest struct from the package
+	u32 asset_count = darray_length(package->internal_data->entries);
+	asset_manifest manifest = {
+		.path = KNULL, // FIXME: get stored path
+		.references = package->internal_data->references,
+		.file_path = package->manifest_file_path,
+		.name = package->name,
+		.assets = KALLOC_TYPE_CARRAY(asset_manifest_asset, asset_count)};
+	for (u32 i = 0; i < asset_count; ++i) {
+		asset_entry* entry = &package->internal_data->entries[i];
+		asset_manifest_asset* a = &manifest.assets[i];
+
+		a->name = entry->name;
+		a->path = entry->path;
+		a->source_path = entry->source_path;
+		a->type = entry->type;
+		a->local_path = entry->local_path;
+		a->local_source_path = entry->local_source_path;
+	}
+
+	// Serialize it
+	kson_tree tree = {
+		.root = kson_object_create()};
+	kson_object_value_add_kname_as_string(&tree.root, "package_name", manifest.name);
+
+	// references
+	kson_array refs = kson_array_create();
+	u32 ref_count = darray_length(package->internal_data->references);
+	for (u32 i = 0; i < ref_count; ++i) {
+		kson_object ref_obj = kson_object_create();
+		kson_object_value_add_kname_as_string(&ref_obj, "name", manifest.references[i].name);
+		kson_object_value_add_string(&ref_obj, "path", manifest.references[i].path);
+		kson_array_value_add_object(&refs, ref_obj);
+	}
+	kson_object_value_add_array(&tree.root, "references", refs);
+
+	kson_array assets = kson_array_create();
+	for (u32 i = 0; i < asset_count; ++i) {
+		kson_object asset_obj = kson_object_create();
+		asset_manifest_asset* ma = &manifest.assets[i];
+		kson_object_value_add_kname_as_string(&asset_obj, "name", ma->name);
+
+		const char* type_str = kasset_type_to_string(ma->type);
+		kson_object_value_add_string(&asset_obj, "type", type_str);
+		string_free(type_str);
+
+		// Use the paths relative to the package.
+		kson_object_value_add_string(&asset_obj, "path", ma->local_path);
+		if (ma->local_source_path) {
+			kson_object_value_add_string(&asset_obj, "source_path", ma->local_source_path);
+		}
+
+		kson_array_value_add_object(&assets, asset_obj);
+	}
+	kson_object_value_add_array(&tree.root, "assets", assets);
+
+	const char* serialized = kson_tree_to_string(&tree);
+
+	kson_tree_cleanup(&tree);
+
+	/* KTRACE("Serialized: \n%s", serialized); */
+
+	// Write it to disk.
+	if (!filesystem_write_entire_text_file(package->manifest_file_path, serialized)) {
+		KERROR("Failed to write asset manifest. See logs for details");
+		return false;
+	}
+
+	return true;
+}
+#endif

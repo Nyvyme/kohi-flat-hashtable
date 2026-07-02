@@ -1,5 +1,6 @@
 #pragma once
 
+#include "world/heightfield_terrain.h"
 #include <core/frame_data.h>
 #include <core_render_types.h>
 #include <core_resource_types.h>
@@ -31,6 +32,10 @@ typedef struct kshadow_pass_data {
 	kshader hmt_shader;
 	u32 hmt_set0_instance_id;
 
+	// Heightfield terrain
+	kshader hft_shader;
+	u32 hft_set0_instance_id;
+
 	ktexture default_base_colour;
 
 	u32 resolution;
@@ -44,6 +49,9 @@ typedef struct kforward_pass_data {
 	u32 sb_shader_set0_instance_id;
 
 	ktexture default_cube_texture;
+
+	kshader hf_terrain_shader;
+	u32 shader_set0_instance_id;
 } kforward_pass_data;
 
 typedef struct kdepth_prepass_data {
@@ -87,6 +95,7 @@ typedef struct kforward_renderer {
 } kforward_renderer;
 
 typedef struct kskybox_render_data {
+	b8 do_pass;
 	u32 shader_set0_instance_id;
 	ktexture skybox_texture;
 	vec4 fog_colour;
@@ -178,6 +187,8 @@ typedef struct kshadow_pass_render_data {
 	u16 terrain_count;
 	hm_terrain_render_data* terrains;
 
+	hf_terrain_render_data hf_terrain_data;
+
 	// Indicates if the pass should be done.
 	b8 do_pass;
 } kshadow_pass_render_data;
@@ -206,6 +217,8 @@ typedef struct kscene_pass_render_data {
 	// Terrain geo data
 	u16 terrain_count;
 	hm_terrain_render_data* terrains;
+
+	hf_terrain_render_data hf_terrain_data;
 } kscene_pass_render_data;
 
 typedef struct kwater_plane_render_data {
@@ -255,7 +268,10 @@ typedef struct kforward_pass_render_data {
 	f32 shadow_fade_distance;
 	f32 shadow_split_mult;
 
-	colour3 fog_colour;
+	f32 near_clip;
+	f32 far_clip;
+
+	colour4 fog_colour;
 	f32 fog_near;
 	f32 fog_far;
 
@@ -278,6 +294,7 @@ typedef struct kdebug_geometry_render_data {
 	colour4 colour;
 } kdebug_geometry_render_data;
 
+#if KOHI_DEBUG
 typedef struct kworld_debug_pass_render_data {
 	mat4 projection;
 	mat4 view;
@@ -292,6 +309,7 @@ typedef struct kworld_debug_pass_render_data {
 
 	b8 do_pass;
 } kworld_debug_pass_render_data;
+#endif
 
 typedef struct kforward_renderer_render_data {
 
@@ -301,8 +319,10 @@ typedef struct kforward_renderer_render_data {
 	// Data to render in the forward pass.
 	kforward_pass_render_data forward_data;
 
+#if KOHI_DEBUG
 	// Data to render world debug geometry
 	kworld_debug_pass_render_data world_debug_data;
+#endif
 } kforward_renderer_render_data;
 
 KAPI b8 kforward_renderer_create(ktexture colour_buffer, ktexture depth_stencil_buffer, kforward_renderer* out_renderer);

@@ -1,12 +1,13 @@
 #include "kasset_importer.h"
 
+#include <importers/kasset_importer_audio.h>
+#include <importers/kasset_importer_bitmap_font_fnt.h>
+#include <importers/kasset_importer_image.h>
+#include <importers/kasset_importer_model_assimp.h>
+
 #include "containers/darray.h"
 #include "core_render_types.h"
 #include "defines.h"
-#include "importers/kasset_importer_audio.h"
-#include "importers/kasset_importer_bitmap_font_fnt.h"
-#include "importers/kasset_importer_image.h"
-#include "importers/kasset_importer_model_assimp.h"
 #include "logger.h"
 #include "platform/filesystem.h"
 #include "platform/kpackage.h"
@@ -196,7 +197,8 @@ b8 import_all_from_manifest(const char* manifest_path, kimport_flag_bits flags) 
 				// Always assume y should be flipped on import.
 				b8 flip_y = true;
 				// NOTE: When importing this way, always use the pixel format as provided by the asset.
-				kpixel_format output_format = KPIXEL_FORMAT_UNKNOWN;
+				// HACK: Overriding this for now.
+				kpixel_format output_format = KPIXEL_FORMAT_RGBA8;
 
 				if (!source_image_2_kbi(asset->source_path, asset->path, flip_y, output_format)) {
 					goto import_all_from_manifest_cleanup;

@@ -14,14 +14,14 @@
 #include <utils_plugin_defines.h>
 
 #if KOHI_DEBUG
-#	define testbed_EDITOR 1
+#	define TESTBED_EDITOR 1
 #endif
 
 #define PACKAGE_NAME_TESTBED "Testbed"
 
 typedef enum testbed_app_mode {
 	TESTBED_APP_MODE_WORLD,
-#ifdef testbed_EDITOR
+#if KOHI_EDITOR
 	TESTBED_APP_MODE_EDITOR,
 #endif
 	TESTBED_APP_MODE_MAIN_MENU,
@@ -33,14 +33,69 @@ KINLINE const char* testbed_application_mode_to_string(testbed_application_mode 
 	default:
 	case TESTBED_APP_MODE_WORLD:
 		return "WORLD";
+#if TESTBED_EDITOR
 	case TESTBED_APP_MODE_EDITOR:
 		return "EDITOR";
+#endif
 	case TESTBED_APP_MODE_MAIN_MENU:
 		return "MAIN_MENU";
 	case TESTBED_APP_MODE_PAUSE_MENU:
 		return "PAUSE";
 	}
 }
+
+typedef enum game_action {
+	// "Global" actions
+	GAME_ACTION_NONE = 0x0000,
+	GAME_ACTION_QUIT = 0x0001,
+
+	GAME_ACTION_LOAD_TEST_SCENE = 0x0002,
+	GAME_ACTION_UNLOAD_SCENE = 0x0003,
+
+	// settings
+	GAME_ACTION_VSYNC_TOGGLE = 0x0250,
+
+#if KOHI_DEBUG
+	GAME_ACTION_CONSOLE_VIS = 0x0500,
+	GAME_ACTION_CONSOLE_SCROLL_UP = 0x0501,
+	GAME_ACTION_CONSOLE_SCROLL_DOWN = 0x0502,
+	GAME_ACTION_CONSOLE_HISTORY_FORWARD = 0x0503,
+	GAME_ACTION_CONSOLE_HISTORY_BACK = 0x0504,
+#endif
+	// NOTE: editor actions reserve the range of 0x1000-0x1FFF
+	EDITOR_ACTION_MIN_RESERVED = 0x1000,
+	EDITOR_ACTION_MAX_RESERVED = 0x1FFF,
+
+	// Menu actions
+	GAME_ACTION_MENU_UP = 0x2000,
+	GAME_ACTION_MENU_DOWN = 0x2001,
+	GAME_ACTION_MENU_LEFT = 0x2002,
+	GAME_ACTION_MENU_RIGHT = 0x2003,
+	GAME_ACTION_MENU_CONFIRM = 0x2004,
+	GAME_ACTION_MENU_CANCEL = 0x2005,
+
+	// Title screen actions
+	GAME_ACTION_TITLE_START = 0x2105,
+
+	// Gameplay actions
+	GAME_ACTION_MOVE_FORWARD = 0x3000,
+	GAME_ACTION_MOVE_BACKWARD = 0x3001,
+	GAME_ACTION_MOVE_UP = 0x3002,
+	GAME_ACTION_MOVE_DOWN = 0x3003,
+	GAME_ACTION_MOVE_LEFT = 0x3004,
+	GAME_ACTION_MOVE_RIGHT = 0x3005,
+	GAME_ACTION_TURN_LEFT = 0x3006,
+	GAME_ACTION_TURN_RIGHT = 0x3007,
+	GAME_ACTION_LOOK_UP = 0x3008,
+	GAME_ACTION_LOOK_DOWN = 0x3009,
+	GAME_ACTION_SPRINT_FORWARD = 0x300A,
+
+// Editor-specific actions
+#if KOHI_EDITOR
+	GAME_ACTION_EDITOR_OPEN = 0x8000,
+	GAME_ACTION_EDITOR_CLOSE = 0x8001,
+#endif
+} game_action;
 
 // User-defined codes to be used with the event system.
 typedef enum game_event_code {
@@ -83,7 +138,7 @@ typedef struct game_state {
 
 } game_state;
 
-#ifdef testbed_EDITOR
+#ifdef TESTBED_EDITOR
 struct editor_state;
 #endif
 
@@ -130,10 +185,11 @@ typedef struct application_state {
 	// Previous frame allocator total memory (in case it changes)
 	u64 prev_framealloc_total;
 
-	// NOTE: Debug stuff to eventually be excluded on release builds.
-#ifdef KOHI_DEBUG
+	// NOTE: Debug displays to eventually be excluded on release builds.
+	// Maybe we have a release-debug build that allows this?
 	kui_control debug_text;
 	kui_control debug_text_shadow;
+#if KOHI_DEBUG
 	debug_console_state debug_console;
 	keymap console_keymap;
 #endif

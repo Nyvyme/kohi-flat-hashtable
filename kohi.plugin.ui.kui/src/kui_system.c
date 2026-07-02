@@ -126,6 +126,7 @@ b8 kui_system_initialize(u64* memory_requirement, kui_state* state, kui_system_c
 	state->scrollable_controls = darray_create(kui_scrollable_control);
 	state->image_box_controls = darray_create(kui_image_box_control);
 	state->checkbox_controls = darray_create(kui_checkbox_control);
+	state->frame_controls = darray_create(kui_frame_control);
 
 	state->root = kui_base_control_create(state, "__ROOT__", KUI_CONTROL_TYPE_BASE);
 
@@ -314,16 +315,18 @@ b8 kui_system_render(kui_state* state, kui_control root, struct frame_data* p_fr
 		return false;
 	}
 
-	// TODO: If there is a clipping mask, insert the begin renderable here.
-	b8 use_clip_mask = false;
-	if (base->clip_mask.render_data.vertex_count) {
-		use_clip_mask = true;
-	}
-
-	if (use_clip_mask) {
-		kui_renderable clip_begin_renderable = {
-			.type = KUI_RENDERABLE_TYPE_CLIP_BEGIN,
-			.render_data = base->clip_mask.render_data};
+	// If there is a clipping mask, insert the begin renderable here.
+	if (base->clipping_area.type != KUI_CLIP_TYPE_NONE) {
+		kui_renderable clip_begin_renderable;
+		if (base->clipping_area.type == KUI_CLIP_TYPE_STENCIL) {
+			clip_begin_renderable = (kui_renderable){
+				.type = KUI_RENDERABLE_TYPE_STENCIL_CLIP_BEGIN,
+				.render_data = base->clipping_area.stencil_data.render_data};
+		} else {
+			clip_begin_renderable = (kui_renderable){
+				.type = KUI_RENDERABLE_TYPE_SCISSOR_CLIP_BEGIN,
+				.clipping_area = base->clipping_area.scissor_data.clipping_area};
+		}
 		darray_push(render_data->renderables, clip_begin_renderable);
 	}
 
@@ -349,9 +352,10 @@ b8 kui_system_render(kui_state* state, kui_control root, struct frame_data* p_fr
 		}
 	}
 
-	// TODO: If there is a clipping mask, insert the end renderable here.
-	if (use_clip_mask) {
-		kui_renderable clip_end_renderable = {.type = KUI_RENDERABLE_TYPE_CLIP_END};
+	// If there is a clipping mask, insert the end renderable here.
+	if (base->clipping_area.type != KUI_CLIP_TYPE_NONE) {
+		kui_renderable clip_end_renderable = {
+			.type = (base->clipping_area.type == KUI_CLIP_TYPE_STENCIL) ? KUI_RENDERABLE_TYPE_STENCIL_CLIP_END : KUI_RENDERABLE_TYPE_SCISSOR_CLIP_END};
 		darray_push(render_data->renderables, clip_end_renderable);
 	}
 
@@ -406,12 +410,19 @@ static void fix_child_levels_r(kui_state* state, kui_control parent) {
 		for (u32 i = 0; i < len; ++i) {
 			kui_base_control* child_base = get_base(state, parent_base->children[i]);
 			child_base->depth = parent_base->depth + 1;
+
+			// Ensure the clips children/clipped by parent flag is set.
+			if (FLAG_GET(parent_base->flags, KUI_CONTROL_FLAG_CLIPS_CHILDREN_BIT) || FLAG_GET(parent_base->flags, KUI_CONTROL_FLAG_CLIPPED_BY_PARENT_BIT)) {
+				FLAG_SET(child_base->flags, KUI_CONTROL_FLAG_CLIPPED_BY_PARENT_BIT, true);
+			}
+
 			fix_child_levels_r(state, parent_base->children[i]);
 		}
 	}
 }
 
 b8 kui_system_control_add_child(kui_state* state, kui_control parent, kui_control child) {
+	KASSERT(parent.val != child.val);
 	if (child.val == INVALID_KUI_CONTROL.val) {
 		return false;
 	}
@@ -439,6 +450,11 @@ b8 kui_system_control_add_child(kui_state* state, kui_control parent, kui_contro
 	child_base->depth = parent_base->depth + 1;
 	ktransform_parent_set(child_base->ktransform, parent_base->ktransform);
 
+	// If parent either clips children or is clipped by a parent, set the clipped by parent flag.
+	if (FLAG_GET(parent_base->flags, KUI_CONTROL_FLAG_CLIPS_CHILDREN_BIT) || FLAG_GET(parent_base->flags, KUI_CONTROL_FLAG_CLIPPED_BY_PARENT_BIT)) {
+		FLAG_SET(child_base->flags, KUI_CONTROL_FLAG_CLIPPED_BY_PARENT_BIT, true);
+	}
+
 	fix_child_levels_r(state, child);
 
 	return true;
@@ -459,6 +475,10 @@ b8 kui_system_control_remove_child(kui_state* state, kui_control parent, kui_con
 		KERROR("Cannot remove a child from a parent which has no children.");
 		false;
 	}
+
+	// Unset clipping flags.
+	FLAG_SET(child_base->flags, KUI_CONTROL_FLAG_CLIPPED_BY_PARENT_BIT, false);
+	FLAG_SET(child_base->flags, KUI_CONTROL_FLAG_CLIPS_CHILDREN_BIT, false);
 
 	u32 child_count = darray_length(parent_base->children);
 	for (u32 i = 0; i < child_count; ++i) {
@@ -593,7 +613,7 @@ void kui_base_control_destroy(kui_state* state, kui_control* self) {
 		}
 	}
 
-	if (FLAG_GET(base->flags, KUI_CONTROL_FLAG_USER_DATA_FREE_ON_DESTROY)) {
+	if (FLAG_GET(base->flags, KUI_CONTROL_FLAG_USER_DATA_FREE_ON_DESTROY_BIT)) {
 		if (base->user_data && base->user_data_size) {
 			kfree(base->user_data, base->user_data_size, base->user_data_memory_tag);
 		}
@@ -663,7 +683,7 @@ void kui_control_set_is_active(kui_state* state, kui_control self, b8 is_active)
 
 b8 kui_control_get_flag(kui_state* state, kui_control self, kui_control_flag_bits flag) {
 	kui_base_control* base = get_base(state, self);
-	return FLAG_GET(base->flags, flag);
+	return FLAG_GET(base->flags, (u32)flag);
 }
 void kui_control_set_flag(kui_state* state, kui_control self, kui_control_flag_bits flag, b8 enabled) {
 	kui_base_control* base = get_base(state, self);
@@ -672,7 +692,7 @@ void kui_control_set_flag(kui_state* state, kui_control self, kui_control_flag_b
 
 void kui_control_set_user_data(kui_state* state, kui_control self, u32 data_size, void* data, b8 free_on_destroy, memory_tag tag) {
 	kui_base_control* base = get_base(state, self);
-	FLAG_SET(base->flags, KUI_CONTROL_FLAG_USER_DATA_FREE_ON_DESTROY, free_on_destroy);
+	FLAG_SET(base->flags, KUI_CONTROL_FLAG_USER_DATA_FREE_ON_DESTROY_BIT, free_on_destroy);
 	base->user_data = data;
 	base->user_data_size = data_size;
 	base->user_data_memory_tag = tag;
@@ -847,6 +867,23 @@ static b8 control_and_ancestors_visible_r(kui_state* state, const kui_base_contr
 	return true;
 }
 
+static kui_control control_get_clipping_parent_r(kui_state* state, const kui_base_control* control) {
+	if (control->parent.val != INVALID_KUI_CONTROL.val) {
+		kui_base_control* parent_base = get_base(state, control->parent);
+		if (FLAG_GET(parent_base->flags, KUI_CONTROL_FLAG_CLIPS_CHILDREN_BIT)) {
+			// This is the clipping control.
+			return control->parent;
+		}
+		// If this control is also clipped by a parent, try further up.
+		if (FLAG_GET(parent_base->flags, KUI_CONTROL_FLAG_CLIPPED_BY_PARENT_BIT)) {
+			return control_get_clipping_parent_r(state, parent_base);
+		}
+	}
+
+	// Control has no parent, thus no clipping parent.
+	return INVALID_KUI_CONTROL;
+}
+
 static b8 control_and_ancestors_active_and_visible_r(kui_state* state, const kui_base_control* control) {
 	return control_and_ancestors_active_r(state, control) && control_and_ancestors_visible_r(state, control);
 }
@@ -871,6 +908,26 @@ static b8 control_event_intersects(kui_state* typed_state, kui_control control, 
 	if (!control_and_ancestors_active_and_visible_r(typed_state, base)) {
 		// Skip ones that aren't.
 		return false;
+	}
+
+	if (FLAG_GET(base->flags, KUI_CONTROL_FLAG_CLIPPED_BY_PARENT_BIT)) {
+		// Get the clipping parent control, and get its bounds, transformed as below, and perform
+		// that test first. If that passes, then do below, otherwise boot.
+		kui_control clipping_parent = control_get_clipping_parent_r(typed_state, base);
+		if (clipping_parent.val != INVALID_KUI_CONTROL.val) {
+			kui_base_control* parent = get_base(typed_state, clipping_parent);
+			mat4 parent_model = ktransform_world_get(parent->ktransform);
+			mat4 parent_inv = mat4_inverse(parent_model);
+			vec3 parent_transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, parent_inv);
+
+			/* KTRACE("Got clipping parent, checking contains..."); */
+
+			if (!rect_2d_contains_point(parent->bounds, (vec2){parent_transformed_evt.x, parent_transformed_evt.y})) {
+				/* KTRACE("Click not contained in clipping parent, booting."); */
+				// Not inside the parent's bounds, boot.
+				return false;
+			}
+		}
 	}
 
 	mat4 model = ktransform_world_get(base->ktransform);
@@ -1403,6 +1460,10 @@ static kui_base_control* get_base(kui_state* state, kui_control control) {
 		len = darray_length(state->checkbox_controls);
 		base = type_index < len ? &state->checkbox_controls[type_index].base : KNULL;
 		break;
+	case KUI_CONTROL_TYPE_FRAME:
+		len = darray_length(state->frame_controls);
+		base = type_index < len ? &state->frame_controls[type_index].base : KNULL;
+		break;
 	// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
 	case KUI_CONTROL_TYPE_NONE:
@@ -1543,6 +1604,20 @@ static kui_control create_handle(kui_state* state, kui_control_type type) {
 		}
 		base = &state->checkbox_controls[type_index].base;
 		break;
+	case KUI_CONTROL_TYPE_FRAME:
+		len = darray_length(state->frame_controls);
+		for (u32 i = 0; i < len; ++i) {
+			if (state->frame_controls[i].base.type == KUI_CONTROL_TYPE_NONE) {
+				type_index = i;
+				break;
+			}
+		}
+		if (type_index == INVALID_ID_U16) {
+			type_index = len;
+			darray_push(state->frame_controls, (kui_frame_control){0});
+		}
+		base = &state->frame_controls[type_index].base;
+		break;
 		// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
 	case KUI_CONTROL_TYPE_NONE:
@@ -1595,6 +1670,10 @@ static void release_handle(kui_state* state, kui_control* handle) {
 		case KUI_CONTROL_TYPE_CHECKBOX:
 			kzero_memory(&state->checkbox_controls[type_index], sizeof(kui_checkbox_control));
 			base = &state->checkbox_controls[type_index].base;
+			break;
+		case KUI_CONTROL_TYPE_FRAME:
+			kzero_memory(&state->frame_controls[type_index], sizeof(kui_frame_control));
+			base = &state->frame_controls[type_index].base;
 			break;
 		case KUI_CONTROL_TYPE_MAX:
 		case KUI_CONTROL_TYPE_NONE:
@@ -1742,7 +1821,6 @@ static b8 parse_atlas_config(const char* config_source, kui_atlas_config* out_co
 			kson_object_property_value_get_vec2(&pressed_obj, "corner_px_size", &out_config->button_downarrow.pressed.corner_px_size);
 
 		} else if (strings_equali(name_str, "textbox")) {
-			// TODO: Process textbox properties
 			kson_object modes_obj;
 			if (!kson_object_property_value_get_object(&control_obj, "modes", &modes_obj)) {
 				KERROR("%s - Required property 'modes' found from controls[%u].", __FUNCTION__, i);
@@ -1762,6 +1840,10 @@ static b8 parse_atlas_config(const char* config_source, kui_atlas_config* out_co
 			kson_object_property_value_get_extents_2d(&focused_obj, "extents", &out_config->textbox.focused.extents);
 			kson_object_property_value_get_vec2(&focused_obj, "corner_size", &out_config->textbox.focused.corner_size);
 			kson_object_property_value_get_vec2(&focused_obj, "corner_px_size", &out_config->textbox.focused.corner_px_size);
+		} else if (strings_equali(name_str, "frame")) {
+			kson_object_property_value_get_extents_2d(&control_obj, "extents", &out_config->frame.extents);
+			kson_object_property_value_get_vec2(&control_obj, "corner_size", &out_config->frame.corner_size);
+			kson_object_property_value_get_vec2(&control_obj, "corner_px_size", &out_config->frame.corner_px_size);
 		} else if (strings_equali(name_str, "scrollbar")) {
 
 			// bg nine-slice

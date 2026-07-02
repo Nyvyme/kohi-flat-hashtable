@@ -65,6 +65,8 @@ KAPI void _asset_system_stop_watch(struct asset_system_state* state, u32 watch_i
 #	define asset_system_stop_watch(state, watch_id)
 #endif
 
+KAPI kname* asset_system_names_by_type(struct asset_system_state* state, kasset_type type, kname package_name, u32* out_count);
+
 // ////////////////////////////////////
 // BINARY ASSETS
 // ////////////////////////////////////
@@ -80,6 +82,8 @@ KAPI kasset_binary* asset_system_request_binary_from_package(struct asset_system
 KAPI kasset_binary* asset_system_request_binary_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name);
 
 KAPI void asset_system_release_binary(struct asset_system_state* state, kasset_binary* asset);
+
+KAPI b8 asset_system_write_binary(struct asset_system_state* state, kname package_name, kname asset_name, u64 size, const void* data);
 
 // ////////////////////////////////////
 // TEXT ASSETS
@@ -166,6 +170,17 @@ KAPI kasset_heightmap_terrain* asset_system_request_heightmap_terrain_from_packa
 KAPI kasset_heightmap_terrain* asset_system_request_heightmap_terrain_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name);
 
 KAPI void asset_system_release_heightmap_terrain(struct asset_system_state* state, kasset_heightmap_terrain* asset);
+
+// ////////////////////////////////////
+// HEIGHTFIELD TERRAIN ASSETS
+// ////////////////////////////////////
+
+typedef void (*PFN_kasset_hf_terrain_loaded_callback)(void* listener, kasset_hf_terrain* asset);
+KAPI kasset_hf_terrain* asset_system_request_hf_terrain(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_hf_terrain_loaded_callback callback);
+KAPI kasset_hf_terrain* asset_system_request_hf_terrain_sync(struct asset_system_state* state, const char* name);
+KAPI kasset_hf_terrain* asset_system_request_hf_terrain_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_hf_terrain_loaded_callback callback);
+KAPI kasset_hf_terrain* asset_system_request_hf_terrain_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name);
+KAPI void asset_system_release_hf_terrain(struct asset_system_state* state, kasset_hf_terrain* asset);
 
 // ////////////////////////////////////
 // MATERIAL ASSETS

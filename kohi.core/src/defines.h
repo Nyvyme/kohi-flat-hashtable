@@ -210,12 +210,18 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #	endif
 #endif
 
-#if _DEBUG
+#ifdef _DEBUG
 #	define KOHI_DEBUG 1
-#	define KOHI_RELEASE 0
+#	ifdef KOHI_RELEASE
+#		undef KOHI_RELEASE
+#	endif
 #else
-#	define KOHI_RELEASE 1
-#	define KOHI_DEBUG 0
+// NOTE: The build NOT being debug doesn't necessarily mean it's release... don't assume this.
+#	ifdef KOHI_RELEASE
+#		undef KOHI_RELEASE
+#		define KOHI_RELEASE 1
+#		define KOHI_DEBUG 0
+#	endif
 #endif
 
 // Feature build flags.
@@ -315,6 +321,20 @@ KINLINE krange get_aligned_range(u64 offset, u64 size, u64 granularity) {
  * @param enabled Indicates if the flag is enabled or not.
  */
 #define FLAG_SET(flags, flag, enabled) (flags = (enabled ? (flags | flag) : (flags & ~flag)))
+
+/**
+ * @brief Indicates if the bit at the provided index is set in the given flags int.
+ */
+#define FLAG_GET_BY_INDEX(flags, index) FLAG_GET(flags, (1 << index))
+
+/**
+ * @brief Sets/unsets the bit at the provided index within the flags int.
+ *
+ * @param flags The flags int to write to.
+ * @param index The index of the bit to set/unset.
+ * @param enabled Indicates if the bit is set or not.
+ */
+#define FLAG_SET_BY_INDEX(flags, index, enabled) FLAG_SET(flags, (1 << index), enabled)
 
 /**
  * Unpacks 4 u16s from a single u64.

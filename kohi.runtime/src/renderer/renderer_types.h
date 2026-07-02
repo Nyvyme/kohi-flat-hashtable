@@ -399,7 +399,7 @@ typedef struct renderer_backend_interface {
 
 	/**
 	 * @brief Sets depth bias factors and clamp dynamically.
-	 * 
+	 *
 	 * @param backend A pointer to the renderer backend interface.
 	 * @param constant_factor A scalar factor controlling the constant depth value added to each fragment.
 	 * @param clamp The maximum (or minimum) depth bias of a fragment.
@@ -409,7 +409,7 @@ typedef struct renderer_backend_interface {
 
 	/**
 	 * @brief Enables/disables depth bias.
-	 * 
+	 *
 	 * @param backend A pointer to the renderer backend interface.
 	 * @param enabled True to enable; otherwise disable.
 	 */
@@ -490,7 +490,7 @@ typedef struct renderer_backend_interface {
 	 * @param pixels The raw image data to be written.
 	 * @returns True on success; otherwise false.
 	 */
-	b8 (*texture_write_data)(struct renderer_backend_interface* backend, ktexture t, u32 offset, u32 size, const u8* pixels, b8 include_in_frame_workload);
+	b8 (*texture_write_data)(struct renderer_backend_interface* backend, ktexture t, u32 bpp, u32 px_x, u32 px_y, i32 layer, u32 width, u32 height, const u8* pixels, b8 defer_to_next_frame);
 
 	/**
 	 * @brief Reads the given data from the provided texture.
@@ -851,3 +851,26 @@ typedef struct renderer_backend_interface {
 	void (*debug_pump_brakes)(struct renderer_backend_interface* backend);
 #endif
 } renderer_backend_interface;
+
+/** @brief Structure representing the global UBO for the included colour3d shader. */
+typedef struct colour_3d_global_ubo {
+	mat4 projection;
+	mat4 view;
+} colour_3d_global_ubo;
+
+/** @brief Structure representing the immediate data for the included colour3d shader. */
+typedef struct colour_3d_immediate_data {
+	mat4 model;
+} colour_3d_immediate_data;
+
+/** @brief Structure representing the global UBO data for the included debug shader. */
+typedef struct debug_shader_global_ubo_data {
+	mat4 projection;
+	mat4 view;
+} debug_shader_global_ubo_data;
+
+/** @brief Structure representing the immediate data for the included debug shader. */
+typedef struct debug_shader_immediate_data {
+	mat4 model;
+	vec4 colour;
+} debug_shader_immediate_data;

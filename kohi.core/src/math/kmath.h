@@ -16,7 +16,6 @@
 #include "defines.h"
 #include "math_types.h"
 #include "memory/kmemory.h"
-#include <float.h>
 
 /** @brief An approximate representation of PI. */
 #define K_PI 3.14159265358979323846f
@@ -74,6 +73,9 @@
 
 #define K_FLOAT_MAX 3.40282e+38F
 #define K_FLOAT_MIN -K_FLOAT_MAX
+
+// Used to test if a float is close to zero, specifically for sweep tests.
+#define SWEEP_EPSILON 1e-5f
 
 // ------------------------------------------
 // General math functions
@@ -239,6 +241,17 @@ KAPI f32 kmod(f32 x, f32 y);
 
 KINLINE f32 klerp(f32 a, f32 b, f32 t) {
 	return a + t * (b - a);
+}
+
+KINLINE f32 kfalloff_smooth(f32 t) {
+	if (t >= 1.0f) {
+		return 0.0f;
+	}
+	if (t <= 0.0f) {
+		return 1.0f;
+	}
+
+	return 1.0f - (t * t * (3.0f - 2.0f * t));
 }
 
 /**
@@ -665,7 +678,7 @@ KINLINE vec4 vec3_to_vec4(vec3 vector, f32 w) {
  * @brief Creates and returns a 3-component vector with all components set to
  * 0.0f.
  */
-KINLINE vec3 vec3_zero(void) { return (vec3){0.0f, 0.0f, 0.0f}; }
+#define vec3_zero() (vec3){0.0f, 0.0f, 0.0f}
 
 /**
  * @brief Creates and returns a 3-component vector with all components set
@@ -2465,6 +2478,9 @@ KINLINE b8 rect_2d_contains_point(rect_2d rect, vec2 point) {
 
 KAPI f32 vec3_distance_to_line(vec3 point, vec3 line_start, vec3 line_direction);
 
+// Angle in degrees between 2 vectors.
+KINLINE f32 vec3_angle(vec3 v_0, vec3 v_1);
+
 KINLINE vec3 extents_2d_center(extents_2d extents) {
 	return (vec3){
 		(extents.min.x + extents.max.x) * 0.5f,
@@ -2700,10 +2716,12 @@ KINLINE b8 aabb_contains_aabb(aabb a, aabb b) {
 		b.max.z <= a.max.z);
 }
 
-KINLINE ray ray_create(vec3 position, vec3 direction) {
+KINLINE ray ray_create(vec3 position, vec3 direction, f32 max_distance, ray_flags flags) {
 	return (ray){
 		.origin = position,
-		.direction = direction};
+		.direction = direction,
+		.max_distance = max_distance,
+		.flags = flags};
 }
 
 KAPI ray ray_transformed(const ray* r, mat4 transform);
@@ -2718,7 +2736,7 @@ KAPI b8 raycast_disc_3d(const ray* r, vec3 center, vec3 normal, f32 outer_radius
 
 KAPI b8 ray_intersects_triangle(const ray* r, const triangle* t);
 
-KAPI b8 ray_pick_triangle(const ray* r, b8 backface_cull, u32 vertex_count, u32 vertex_element_size, void* vertices, u32 index_count, u32* indices, triangle* out_triangle, vec3* out_hit_pos, vec3* out_hit_normal);
+KAPI b8 ray_pick_triangle(const ray* r, b8 backface_cull, u32 vertex_count, u32 vertex_element_size, const void* vertices, u32 index_count, const u32* indices, triangle* out_triangle, vec3* out_hit_pos, vec3* out_hit_normal);
 
 KAPI b8 ray_intersects_sphere(const ray* r, vec3 center, f32 radius, vec3* out_point, f32* out_distance);
 
@@ -2858,3 +2876,33 @@ KINLINE obb aabb_to_obb(const aabb a, mat4 m) {
 
 	return out;
 }
+
+KAPI vec3 normal_from_triangle(const triangle* tri);
+
+KAPI vec3 closest_point_on_segment(vec3 a, vec3 b, vec3 pos);
+
+KAPI vec3 vec3_project_on_plane(vec3 pos, vec3 normal);
+
+KAPI vec3 closest_point_on_triangle(vec3 pos, const triangle* t);
+// Return whether point P is contained inside 3D region delimited by triangle T0,T1,T2 edges.
+KAPI b8 point_inside_triangle(vec3 p, const triangle* tri);
+// Return whether point P is contained inside 3D region delimited by parallelogram P0,P1,P2 edges.
+KAPI b8 point_inside_parallelogram(vec3 p, vec3 p0, vec3 p1, vec3 p2);
+// Return whether point P is contained inside a triangular prism A0,A1,A2-B0,B1,B2.
+KAPI b8 point_inside_triangular_prism(vec3 p, vec3 a0, vec3 a1, vec3 a2, vec3 b0, vec3 b1, vec3 b2);
+// Sweep sphere C,r with velocity Sv against plane N of triangle T0,T1,T2, ignoring edges.
+KAPI b8 sweep_sphere_triangle_plane(sweep_result* sweep, vec3 c, f32 r, vec3 v, vec3 t0, vec3 t1, vec3 t2, vec3 n);
+// Sweep sphere C,r with velocity V against plane N of parallelogram P0,P1,P2 ignoring edges.
+KAPI b8 sweep_sphere_parallelogram_plane(sweep_result* sweep, vec3 c, f32 r, vec3 v, vec3 p0, vec3 p1, vec3 p2, vec3 n);
+// Sweep point P with velocity V against sphere S,r.
+KAPI b8 sweep_point_sphere(sweep_result* sweep, vec3 p, vec3 v, vec3 s, f32 r, vec3 fallback_normal);
+// Sweep point P with velocity V against cylinder C0,C1,r, ignoring the endcaps.
+KAPI b8 sweep_point_uncapped_cylinder(sweep_result* sweep, vec3 p, vec3 v, vec3 c0, vec3 c1, f32 r, vec3 fallback_normal);
+
+// Sweep a capsule C0,C1,Cr with velocity Cv against the triangle T0,T1,T2.
+//   c0,c1      capsule line segment endpoints
+//   r          capsule radius
+//   v          capsule velocity
+//   t0,t1,t2   3 triangle vertices
+//   returns    whether the capsule and triangle intersect
+KAPI b8 sweep_capsule_triangle(sweep_result* s, vec3 c0, vec3 c1, f32 r, vec3 v, vec3 t0, vec3 t1, vec3 t2);

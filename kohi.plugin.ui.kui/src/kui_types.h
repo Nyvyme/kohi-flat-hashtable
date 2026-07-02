@@ -22,16 +22,19 @@ typedef struct {
 
 typedef enum kui_renderable_type {
 	KUI_RENDERABLE_TYPE_CONTROL,
-	KUI_RENDERABLE_TYPE_CLIP_BEGIN,
-	KUI_RENDERABLE_TYPE_CLIP_END
+	KUI_RENDERABLE_TYPE_STENCIL_CLIP_BEGIN,
+	KUI_RENDERABLE_TYPE_STENCIL_CLIP_END,
+	KUI_RENDERABLE_TYPE_SCISSOR_CLIP_BEGIN,
+	KUI_RENDERABLE_TYPE_SCISSOR_CLIP_END
 } kui_renderable_type;
 
 typedef struct kui_renderable {
+	kui_renderable_type type;
 	// The per-control instance binding id for binding set 1.
 	u32 binding_instance_id;
 	ktexture atlas_override;
-	kui_renderable_type type;
 	geometry_render_data render_data;
+	rect_2di clipping_area;
 } kui_renderable;
 
 typedef struct kui_render_data {
@@ -85,12 +88,29 @@ typedef struct kui_checkbox_event {
 	b8 checked;
 } kui_checkbox_event;
 
+typedef enum kui_clip_type {
+	KUI_CLIP_TYPE_NONE,
+	KUI_CLIP_TYPE_STENCIL,
+	// Cheaper than stencil clipping, but limited to axis-aligned rectangle.
+	// Applying rotation will break this.
+	KUI_CLIP_TYPE_SCISSOR
+} kui_clip_type;
+
 typedef struct kui_clip_mask {
-	u32 reference_id;
-	ktransform clip_ktransform;
-	kgeometry clip_geometry;
-	geometry_render_data render_data;
-} kui_clip_mask;
+	kui_clip_type type;
+
+	union {
+		struct {
+			u32 reference_id;
+			ktransform transform;
+			kgeometry geometry;
+			geometry_render_data render_data;
+		} stencil_data;
+		struct {
+			rect_2di clipping_area;
+		} scissor_data;
+	};
+} kui_clipping_area;
 
 typedef enum kui_control_flag_bits {
 	KUI_CONTROL_FLAG_NONE = 0,
@@ -101,7 +121,10 @@ typedef enum kui_control_flag_bits {
 	KUI_CONTROL_FLAG_FOCUSABLE_BIT = 1 << 4,
 	KUI_CONTROL_FLAG_IS_DRAGGING_BIT = 1 << 5,
 	KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT = 1 << 6,
-	KUI_CONTROL_FLAG_USER_DATA_FREE_ON_DESTROY = 1 << 7
+	KUI_CONTROL_FLAG_USER_DATA_FREE_ON_DESTROY_BIT = 1 << 7,
+	// Control clips children
+	KUI_CONTROL_FLAG_CLIPS_CHILDREN_BIT = 1 << 8,
+	KUI_CONTROL_FLAG_CLIPPED_BY_PARENT_BIT = 1 << 9
 } kui_control_flag_bits;
 
 typedef u32 kui_control_flags;
@@ -125,6 +148,7 @@ typedef enum kui_control_type {
 	KUI_CONTROL_TYPE_SCROLLABLE,
 	KUI_CONTROL_TYPE_IMAGE_BOX,
 	KUI_CONTROL_TYPE_CHECKBOX,
+	KUI_CONTROL_TYPE_FRAME,
 
 	KUI_CONTROL_TYPE_MAX = 64
 } kui_control_type;
@@ -143,7 +167,7 @@ typedef struct kui_base_control {
 
 	rect_2d bounds;
 
-	kui_clip_mask clip_mask;
+	kui_clipping_area clipping_area;
 
 	kui_control parent;
 	// darray
@@ -203,10 +227,21 @@ typedef struct kui_panel_control {
 	b8 is_dirty;
 } kui_panel_control;
 
+typedef enum kui_label_flag_bits {
+	KUI_LABEL_FLAG_NONE = 0,
+	KUI_LABEL_FLAG_WRAP_BIT = 1 << 0,
+	KUI_LABEL_FLAG_TRUNCATE_BIT = 1 << 1,
+	KUI_LABEL_FLAG_TRUNCATE_ELLIPSIS_BIT = 1 << 2
+} kui_label_flag_bits;
+
+typedef u32 kui_label_flags;
+
 typedef struct kui_label_control {
 	kui_base_control base;
 	vec2i size;
 	vec4 colour;
+	f32 max_width;
+	kui_label_flags flags;
 	u32 binding_instance_id;
 
 	font_type type;
@@ -277,6 +312,14 @@ typedef struct kui_textbox_control {
 
 	struct kui_textbox_event_listener* listener;
 } kui_textbox_control;
+
+typedef struct kui_frame_control {
+	kui_base_control base;
+	vec2i size;
+	vec4 colour;
+	nine_slice nslice;
+	u32 binding_instance_id;
+} kui_frame_control;
 
 typedef struct kui_tree_item_control {
 	kui_base_control base;
@@ -405,6 +448,8 @@ typedef struct kui_atlas_checkbox_config {
 	rect_2di disabled_checked_rect;
 } kui_atlas_checkbox_config;
 
+typedef kui_atlas_textbox_control_mode_config kui_atlas_frame_control_config;
+
 typedef struct kui_atlas_config {
 	kname image_asset_name;
 	kname image_asset_package_name;
@@ -416,4 +461,5 @@ typedef struct kui_atlas_config {
 	kui_atlas_textbox_control_config textbox;
 	kui_atlas_scrollbar_bg_config scrollbar;
 	kui_atlas_checkbox_config checkbox;
+	kui_atlas_frame_control_config frame;
 } kui_atlas_config;

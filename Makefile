@@ -94,14 +94,23 @@ copy-top-level-linux copy-top-level-macos: copy-utils
 	cp testbed.klib/bin/* bin
 	cp testbed.kapp/bin/* bin
 
+copy-top-level-lib: copy-top-level-lib-$(PLATFORM)
+.NOTPARALLEL: copy-top-level-lib
+
+copy-top-level-lib-win32:
+	copy testbed.klib\bin\* bin
+
+copy-top-level-lib-linux copy-top-level-lib-macos:
+	cp testbed.klib/bin/* bin
 
 # Debug builds
 all-debug: setup kohi-debug kohi-tests-debug kohi-plugins-debug kohi-tools-debug testbed-debug copy-top-level
 build-debug: kohi-debug kohi-tests-debug kohi-plugins-debug kohi-tools-debug testbed-debug copy-top-level
 kohi-debug: core-debug runtime-debug 
 kohi-tests-debug: kohi-debug core-tests-debug runtime-tests-debug
-kohi-plugins-debug: kohi-debug plugin-audio-openal-debug plugin-renderer-vulkan-debug plugin-renderer-ui-kui-debug plugin-renderer-utils-debug
+kohi-plugins-debug: kohi-debug plugin-audio-openal-debug plugin-renderer-vulkan-debug plugin-ui-kui-debug plugin-utils-debug
 testbed-debug: kohi-debug kohi-plugins-debug testbed-klib-debug testbed-kapp-debug
+testbed-lib-debug: testbed-klib-debug copy-top-level-lib
 
 utils-debug:
 	$(MAKE) -C utils all-debug
@@ -124,10 +133,10 @@ plugin-audio-openal-debug:
 plugin-renderer-vulkan-debug:
 	$(MAKE) -C kohi.plugin.renderer.vulkan all-debug
 
-plugin-renderer-ui-kui-debug:
+plugin-ui-kui-debug:
 	$(MAKE) -C kohi.plugin.ui.kui all-debug
 
-plugin-renderer-utils-debug:
+plugin-utils-debug:
 	$(MAKE) -C kohi.plugin.utils all-debug
 
 kohi-tools-debug:
@@ -177,10 +186,10 @@ plugin-renderer-utils-release:
 kohi-tools-release:
 	$(MAKE) -C kohi.tools all-release
 
-plugin-testbed-klib-release:
+testbed-klib-release:
 	$(MAKE) -C testbed.klib all-release
 
-plugin-testbed-kapp-release:
+testbed-kapp-release:
 	$(MAKE) -C testbed.kapp all-release
 
 # Clean "builds"
@@ -199,6 +208,7 @@ clean-top-level-win32:
 
 clean-top-level-linux clean-top-level-macos:
 	rm -rf bin/*
+	rm -rf obj/*
 
 utils-clean:
 	$(MAKE) -C utils clean
@@ -230,10 +240,10 @@ plugin-renderer-utils-clean:
 tools-clean:
 	$(MAKE) -C kohi.tools clean
 
-plugin-testbed-klib-clean:
+testbed-klib-clean:
 	$(MAKE) -C testbed.klib clean
 
-plugin-testbed-kapp-clean:
+testbed-kapp-clean:
 	$(MAKE) -C testbed.kapp clean
 
 

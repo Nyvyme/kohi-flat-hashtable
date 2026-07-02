@@ -15,806 +15,1123 @@ references = [
 ]
 assets = [
 	{
+		name = "dirtRocks_grass_mix"
+		type = "image"
+		metadata = {
+			comment = "Extra data"
+		}
+		description = "A terrain texture containing a mix of dirt, rocks and grass"
+		path = "./assets/images/dirtRocks_grass_mix.kbi"
+		source_path = "./assets/images/source/dirtRocks_grass_mix.jpg"
+	}
+	{
+		name = "dirtRocks_grass_mix_NORM"
+		type = "image"
+		path = "./assets/images/dirtRocks_grass_mix_NORM.kbi"
+		source_path = "./assets/images/source/dirtRocks_grass_mix_NORM.png"
+	}
+	{
+		name = "dirtRocks_grass_mix_MRA"
+		type = "image"
+		path = "./assets/images/dirtRocks_grass_mix_MRA.kbi"
+		source_path = "./assets/images/source/dirtRocks_grass_mix_MRA.png"
+	}
+	{
+		name = "lushGrass"
+		type = "image"
+		path = "./assets/images/lushGrass.kbi"
+		source_path = "./assets/images/source/lushGrass.jpg"
+	}
+	{
+		name = "lushGrass_NORM"
+		type = "image"
+		path = "./assets/images/lushGrass_NORM.kbi"
+		source_path = "./assets/images/source/lushGrass_NORM.png"
+	}
+	{
+		name = "lushGrass_MRA"
+		type = "image"
+		path = "./assets/images/lushGrass_MRA.kbi"
+		source_path = "./assets/images/source/lushGrass_MRA.png"
+	}
+	{
+		name = "lushGrass_dry"
+		type = "image"
+		path = "./assets/images/lushGrass_dry.kbi"
+		source_path = "./assets/images/source/lushGrass_dry.jpg"
+	}
+	{
+		name = "lushGrass_dry_NORM"
+		type = "image"
+		path = "./assets/images/lushGrass_dry_NORM.kbi"
+		source_path = "./assets/images/source/lushGrass_dry_NORM.png"
+	}
+	{
+		name = "lushGrass_dry_MRA"
+		type = "image"
+		path = "./assets/images/lushGrass_dry_MRA.kbi"
+		source_path = "./assets/images/source/lushGrass_dry_MRA.png"
+	}
+	{
+		name = "yellowFlowers"
+		type = "image"
+		path = "./assets/images/yellowFlowers.kbi"
+		source_path = "./assets/images/source/yellowFlowers.jpg"
+	}
+	{
+		name = "yellowFlowers_NORM"
+		type = "image"
+		path = "./assets/images/yellowFlowers_NORM.kbi"
+		source_path = "./assets/images/source/yellowFlowers_NORM.png"
+	}
+	{
+		name = "yellowFlowers_MRA"
+		type = "image"
+		path = "./assets/images/yellowFlowers_MRA.kbi"
+		source_path = "./assets/images/source/yellowFlowers_MRA.png"
+	}
+	{
+		name = "paverPath"
+		type = "image"
+		path = "./assets/images/paverPath.kbi"
+		source_path = "./assets/images/source/paverPath.jpg"
+	}
+	{
+		name = "paverPath_NORM"
+		type = "image"
+		path = "./assets/images/paverPath_NORM.kbi"
+		source_path = "./assets/images/source/paverPath_NORM.png"
+	}
+	{
+		name = "paverPath_MRA"
+		type = "image"
+		path = "./assets/images/paverPath_MRA.kbi"
+		source_path = "./assets/images/source/paverPath_MRA.png"
+	}
+	{
+		name = "squarePaverPath_Angled"
+		type = "image"
+		path = "./assets/images/squarePaverPath_Angled.kbi"
+		source_path = "./assets/images/source/squarePaverPath_Angled.jpg"
+	}
+	{
+		name = "squarePaverPath_Angled_NORM"
+		type = "image"
+		path = "./assets/images/squarePaverPath_Angled_NORM.kbi"
+		source_path = "./assets/images/source/squarePaverPath_Angled_NORM.png"
+	}
+	{
+		name = "squarePaverPath_Angled_MRA"
+		type = "image"
+		path = "./assets/images/squarePaverPath_Angled_MRA.kbi"
+		source_path = "./assets/images/source/squarePaverPath_Angled_MRA.png"
+	}
+	{
+		name = "dirtRocks_dark"
+		type = "image"
+		path = "./assets/images/dirtRocks_dark.kbi"
+		source_path = "./assets/images/source/dirtRocks_dark.jpg"
+	}
+	{
+		name = "dirtRocks_dark_NORM"
+		type = "image"
+		path = "./assets/images/dirtRocks_dark_NORM.kbi"
+		source_path = "./assets/images/source/dirtRocks_dark_NORM.png"
+	}
+	{
+		name = "dirtRocks_dark_MRA"
+		type = "image"
+		path = "./assets/images/dirtRocks_dark_MRA.kbi"
+		source_path = "./assets/images/source/dirtRocks_dark_MRA.png"
+	}
+	{
+		name = "brownTerrainRockA"
+		type = "image"
+		path = "./assets/images/brownTerrainRockA.kbi"
+		source_path = "./assets/images/source/brownTerrainRockA.jpg"
+	}
+	{
+		name = "brownTerrainRockA_dark"
+		type = "image"
+		path = "./assets/images/brownTerrainRockA_dark.kbi"
+		source_path = "./assets/images/source/brownTerrainRockA_dark.jpg"
+	}
+	{
+		name = "brownTerrainRockA_dark_dirt_mix"
+		type = "image"
+		path = "./assets/images/brownTerrainRockA_dark_dirt_mix.kbi"
+		source_path = "./assets/images/source/brownTerrainRockA_dark_dirt_mix.jpg"
+	}
+	{
 		name = "16___Default"
+		type = "material"
 		path = "./assets/materials/16___Default.kmt"
 	}
 	{
 		name = "arch"
+		type = "material"
 		path = "./assets/materials/arch.kmt"
 	}
 	{
 		name = "beams"
+		type = "material"
 		path = "./assets/materials/beams.kmt"
 	}
 	{
 		name = "boards"
+		type = "material"
 		path = "./assets/materials/boards.kmt"
 	}
 	{
 		name = "bricks"
+		type = "material"
 		path = "./assets/materials/bricks.kmt"
 	}
 	{
 		name = "ceiling"
+		type = "material"
 		path = "./assets/materials/ceiling.kmt"
 	}
 	{
 		name = "chain"
+		type = "material"
 		path = "./assets/materials/chain.kmt"
 	}
 	{
 		name = "cobblestone"
+		type = "material"
 		path = "./assets/materials/cobblestone.kmt"
 	}
 	{
 		name = "column_a"
+		type = "material"
 		path = "./assets/materials/column_a.kmt"
 	}
 	{
 		name = "column_b"
+		type = "material"
 		path = "./assets/materials/column_b.kmt"
 	}
 	{
 		name = "column_c"
+		type = "material"
 		path = "./assets/materials/column_c.kmt"
 	}
 	{
 		name = "Crusted_snow2"
+		type = "material"
 		path = "./assets/materials/Crusted_snow2.kmt"
 	}
 	{
 		name = "details"
+		type = "material"
 		path = "./assets/materials/details.kmt"
 	}
 	{
 		name = "fabric_a"
+		type = "material"
 		path = "./assets/materials/fabric_a.kmt"
 	}
 	{
 		name = "fabric_c"
+		type = "material"
 		path = "./assets/materials/fabric_c.kmt"
 	}
 	{
 		name = "fabric_d"
+		type = "material"
 		path = "./assets/materials/fabric_d.kmt"
 	}
 	{
 		name = "fabric_e"
+		type = "material"
 		path = "./assets/materials/fabric_e.kmt"
 	}
 	{
 		name = "fabric_f"
+		type = "material"
 		path = "./assets/materials/fabric_f.kmt"
 	}
 	{
 		name = "fabric_g"
+		type = "material"
 		path = "./assets/materials/fabric_g.kmt"
 	}
 	{
 		name = "falc_wreck"
+		type = "material"
 		path = "./assets/materials/falc_wreck.kmt"
 	}
 	{
 		name = "flagpole"
+		type = "material"
 		path = "./assets/materials/flagpole.kmt"
 	}
 	{
 		name = "floor"
+		type = "material"
 		path = "./assets/materials/floor.kmt"
 	}
 	{
 		name = "leaf"
+		type = "material"
 		path = "./assets/materials/leaf.kmt"
 	}
 	{
 		name = "Material__25"
+		type = "material"
 		path = "./assets/materials/Material__25.kmt"
 	}
 	{
 		name = "Material__298"
+		type = "material"
 		path = "./assets/materials/Material__298.kmt"
 	}
 	{
 		name = "Material__47"
+		type = "material"
 		path = "./assets/materials/Material__47.kmt"
 	}
 	{
 		name = "Material__57"
+		type = "material"
 		path = "./assets/materials/Material__57.kmt"
 	}
 	{
 		name = "paving"
+		type = "material"
 		path = "./assets/materials/paving.kmt"
 	}
 	{
 		name = "paving2"
+		type = "material"
 		path = "./assets/materials/paving2.kmt"
 	}
 	{
 		name = "polySurface1SG1"
+		type = "material"
 		path = "./assets/materials/polySurface1SG1.kmt"
 	}
 	{
 		name = "river_rock1"
+		type = "material"
 		path = "./assets/materials/river_rock1.kmt"
 	}
 	{
 		name = "roof"
+		type = "material"
 		path = "./assets/materials/roof.kmt"
 	}
 	{
 		name = "test_material"
+		type = "material"
 		path = "./assets/materials/test_material.kmt"
 	}
 	{
 		name = "Trank_bark"
+		type = "material"
 		path = "./assets/materials/Trank_bark.kmt"
 	}
 	{
 		name = "vase"
+		type = "material"
 		path = "./assets/materials/vase.kmt"
 	}
 	{
 		name = "vase_hanging"
+		type = "material"
 		path = "./assets/materials/vase_hanging.kmt"
 	}
 	{
 		name = "vase_round"
+		type = "material"
 		path = "./assets/materials/vase_round.kmt"
 	}
 	{
 		name = "wavy-sand"
+		type = "material"
 		path = "./assets/materials/wavy-sand.kmt"
 	}
 	{
 		name = "wispy-grass-meadow"
+		type = "material"
 		path = "./assets/materials/wispy-grass-meadow.kmt"
 	}
 	{
 		name = "falcon"
+		type = "model"
 		path = "./assets/models/falcon.k3d"
 		source_path = "./assets/models/source/falcon.obj"
 	}
 	{
 		name = "sponza"
+		type = "model"
 		path = "./assets/models/sponza.k3d"
 		source_path = "./assets/models/source/sponza.obj"
 	}
 	{
 		name = "Tree"
+		type = "model"
 		path = "./assets/models/Tree.k3d"
 		source_path = "./assets/models/source/Tree.obj"
 	}
 	{
 		name = "v_simple_hut_LOD0"
+		type = "model"
 		path = "./assets/models/v_simple_hut_LOD0.k3d"
 		source_path = "./assets/models/source/v_simple_hut_LOD0.obj"
 	}
 	{
 		name = "Woodland Fantasy"
+		type = "audio"
 		path = "./assets/music/Woodland Fantasy.kaf"
 		source_path = "./assets/music/source/Woodland Fantasy.mp3"
 	}
 	{
 		name = "Woodland Fantasy mono"
+		type = "audio"
 		path = "./assets/music/Woodland Fantasy mono.kaf"
 		source_path = "./assets/music/source/Woodland Fantasy mono.mp3"
 	}
 	{
 		name = "FireLoop"
+		type = "audio"
 		path = "./assets/music/FireLoop.kaf"
 		source_path = "./assets/music/source/FireLoop.mp3"
 	}
 	{
 		name = "Fire_loop"
+		type = "audio"
 		path = "./assets/sounds/Fire_loop.kaf"
 		source_path = "./assets/sounds/source/Fire_loop.ogg"
 	}
 	{
 		name = "Fire_loop_2"
+		type = "audio"
 		path = "./assets/sounds/Fire_loop_2.kaf"
 		source_path = "./assets/sounds/source/Fire_loop_2.ogg"
 	}
 	{
 		name = "Test_Audio"
+		type = "audio"
 		path = "./assets/sounds/Test.kaf"
 		source_path = "./assets/sounds/source/Test.ogg"
 	}
 	{
 		name = "Unlock"
+		type = "audio"
 		path = "./assets/sounds/Unlock.kaf"
 		source_path = "./assets/sounds/source/Unlock.ogg"
 	}
 	{
 		name = "test_scene"
+		type = "scene"
 		path = "./assets/scenes/test_scene.ksn"
 	}
 	{
 		name = "test_terrain"
+		type = "hm_terrain"
 		path = "./assets/terrains/test_terrain.ktn"
 	}
 	{
 		name = "background"
+		type = "image"
 		path = "./assets/images/background.kbi"
 		source_path = "./assets/images/source/background.tga"
 	}
 	{
 		name = "background_combined"
+		type = "image"
 		path = "./assets/images/background_combined.kbi"
 		source_path = "./assets/images/source/background_combined.png"
 	}
 	{
 		name = "background_ddn"
+		type = "image"
 		path = "./assets/images/background_ddn.kbi"
 		source_path = "./assets/images/source/background_ddn.tga"
 	}
 	{
 		name = "bark_0021"
+		type = "image"
 		path = "./assets/images/bark_0021.kbi"
 		source_path = "./assets/images/source/bark_0021.jpg"
 	}
 	{
 		name = "beams_and_sticks_bc"
+		type = "image"
 		path = "./assets/images/beams_and_sticks_bc.kbi"
 		source_path = "./assets/images/source/beams_and_sticks_bc.png"
 	}
 	{
 		name = "beams_and_sticks_n"
+		type = "image"
 		path = "./assets/images/beams_and_sticks_n.kbi"
 		source_path = "./assets/images/source/beams_and_sticks_n.png"
 	}
 	{
 		name = "beams_and_sticks_roughness"
+		type = "image"
 		path = "./assets/images/beams_and_sticks_roughness.kbi"
 		source_path = "./assets/images/source/beams_and_sticks_roughness.png"
 	}
 	{
 		name = "boards_and_planks_bc"
+		type = "image"
 		path = "./assets/images/boards_and_planks_bc.kbi"
 		source_path = "./assets/images/source/boards_and_planks_bc.png"
 	}
 	{
 		name = "boards_and_planks_bc2"
+		type = "image"
 		path = "./assets/images/boards_and_planks_bc2.kbi"
 		source_path = "./assets/images/source/boards_and_planks_bc2.png"
 	}
 	{
 		name = "boards_and_planks_n"
+		type = "image"
 		path = "./assets/images/boards_and_planks_n.kbi"
 		source_path = "./assets/images/source/boards_and_planks_n.png"
 	}
 	{
 		name = "boards_and_planks_roughness"
+		type = "image"
 		path = "./assets/images/boards_and_planks_roughness.kbi"
 		source_path = "./assets/images/source/boards_and_planks_roughness.png"
 	}
 	{
 		name = "chain_texture"
+		type = "image"
 		path = "./assets/images/chain_texture.kbi"
 		source_path = "./assets/images/source/chain_texture.tga"
 	}
 	{
 		name = "chain_texture_ddn"
+		type = "image"
 		path = "./assets/images/chain_texture_ddn.kbi"
 		source_path = "./assets/images/source/chain_texture_ddn.tga"
 	}
 	{
 		name = "chain_texture_combined"
+		type = "image"
 		path = "./assets/images/chain_texture_combined.kbi"
 		source_path = "./assets/images/source/chain_texture_combined.png"
 	}
 	{
 		name = "cobblestone_bc"
+		type = "image"
 		path = "./assets/images/cobblestone_bc.kbi"
 		source_path = "./assets/images/source/cobblestone_bc.png"
 	}
 	{
 		name = "cobblestone_NRM"
+		type = "image"
 		path = "./assets/images/cobblestone_NRM.kbi"
 		source_path = "./assets/images/source/cobblestone_NRM.png"
 	}
 	{
 		name = "cobblestone_SPEC"
+		type = "image"
 		path = "./assets/images/cobblestone_SPEC.kbi"
 		source_path = "./assets/images/source/cobblestone_SPEC.png"
 	}
 	{
 		name = "Crusted_snow2_Base_Color"
+		type = "image"
 		path = "./assets/images/Crusted_snow2_Base_Color.kbi"
 		source_path = "./assets/images/source/Crusted_snow2_Base_Color.png"
 	}
 	{
 		name = "Crusted_snow2_ao"
+		type = "image"
 		path = "./assets/images/Crusted_snow2_ao.kbi"
 		source_path = "./assets/images/source/Crusted_snow2_ao.png"
 	}
 	{
 		name = "Crusted_snow2_combined"
+		type = "image"
 		path = "./assets/images/Crusted_snow2_combined.kbi"
 		source_path = "./assets/images/source/Crusted_snow2_combined.png"
 	}
 	{
 		name = "Crusted_snow2_Normal"
+		type = "image"
 		path = "./assets/images/Crusted_snow2_Normal.kbi"
 		source_path = "./assets/images/source/Crusted_snow2_Normal.png"
 	}
 	{
 		name = "DB2X2_L01"
+		type = "image"
 		path = "./assets/images/DB2X2_L01.kbi"
 		source_path = "./assets/images/source/DB2X2_L01.png"
 	}
 	{
 		name = "DB2X2_L01_Spec"
+		type = "image"
 		path = "./assets/images/DB2X2_L01_Spec.kbi"
 		source_path = "./assets/images/source/DB2X2_L01_Spec.png"
 	}
 	{
 		name = "default"
+		type = "image"
 		path = "./assets/images/default.kbi"
 		source_path = "./assets/images/source/default.png"
 	}
 	{
 		name = "falc_wreck_low_DefaultMaterial_AlbedoTransparency"
+		type = "image"
 		path = "./assets/images/falc_wreck_low_DefaultMaterial_AlbedoTransparency.kbi"
 		source_path = "./assets/images/source/falc_wreck_low_DefaultMaterial_AlbedoTransparency.png"
 	}
 	{
 		name = "falc_wreck_low_DefaultMaterial_combined"
+		type = "image"
 		path = "./assets/images/falc_wreck_low_DefaultMaterial_combined.kbi"
 		source_path = "./assets/images/source/falc_wreck_low_DefaultMaterial_combined.png"
 	}
 	{
 		name = "falc_wreck_low_DefaultMaterial_Normal"
+		type = "image"
 		path = "./assets/images/falc_wreck_low_DefaultMaterial_Normal.kbi"
 		source_path = "./assets/images/source/falc_wreck_low_DefaultMaterial_Normal.png"
 	}
 	{
 		name = "kohi"
+		type = "image"
 		path = "./assets/images/kohi.kbi"
 		source_path = "./assets/images/source/kohi.png"
 	}
 	{
 		name = "lion"
+		type = "image"
 		path = "./assets/images/lion.kbi"
 		source_path = "./assets/images/source/lion.tga"
 	}
 	{
 		name = "lion_combined"
+		type = "image"
 		path = "./assets/images/lion_combined.kbi"
 		source_path = "./assets/images/source/lion_combined.png"
 	}
 	{
 		name = "lion_ddn"
+		type = "image"
 		path = "./assets/images/lion_ddn.kbi"
 		source_path = "./assets/images/source/lion_ddn.tga"
 	}
 	{
 		name = "orange_lines_512"
+		type = "image"
 		path = "./assets/images/orange_lines_512.kbi"
 		source_path = "./assets/images/source/orange_lines_512.png"
 	}
 	{
 		name = "orange_lines_512_SPEC"
+		type = "image"
 		path = "./assets/images/orange_lines_512_SPEC.kbi"
 		source_path = "./assets/images/source/orange_lines_512_SPEC.png"
 	}
 	{
 		name = "paving_bc"
+		type = "image"
 		path = "./assets/images/paving_bc.kbi"
 		source_path = "./assets/images/source/paving_bc.png"
 	}
 	{
 		name = "paving_NRM"
+		type = "image"
 		path = "./assets/images/paving_NRM.kbi"
 		source_path = "./assets/images/source/paving_NRM.png"
 	}
 	{
 		name = "paving_SPEC"
+		type = "image"
 		path = "./assets/images/paving_SPEC.kbi"
 		source_path = "./assets/images/source/paving_SPEC.png"
 	}
 	{
 		name = "paving2_bc"
+		type = "image"
 		path = "./assets/images/paving2_bc.kbi"
 		source_path = "./assets/images/source/paving2_bc.png"
 	}
 	{
 		name = "paving2_NRM"
+		type = "image"
 		path = "./assets/images/paving2_NRM.kbi"
 		source_path = "./assets/images/source/paving2_NRM.png"
 	}
 	{
 		name = "paving2_SPEC"
+		type = "image"
 		path = "./assets/images/paving2_SPEC.kbi"
 		source_path = "./assets/images/source/paving2_SPEC.png"
 	}
 	{
 		name = "river_rock1_albedo"
+		type = "image"
 		path = "./assets/images/river_rock1_albedo.kbi"
 		source_path = "./assets/images/source/river_rock1_albedo.png"
 	}
 	{
 		name = "river_rock1_combined"
+		type = "image"
 		path = "./assets/images/river_rock1_combined.kbi"
 		source_path = "./assets/images/source/river_rock1_combined.png"
 	}
 	{
 		name = "river_rock1_Normal"
+		type = "image"
 		path = "./assets/images/river_rock1_Normal.kbi"
 		source_path = "./assets/images/source/river_rock1_Normal.png"
 	}
 	{
 		name = "skybox_b"
+		type = "image"
 		path = "./assets/images/skybox_b.kbi"
 		source_path = "./assets/images/source/skybox_b.jpg"
 	}
 	{
 		name = "skybox_d"
+		type = "image"
 		path = "./assets/images/skybox_d.kbi"
 		source_path = "./assets/images/source/skybox_d.jpg"
 	}
 	{
 		name = "skybox_f"
+		type = "image"
 		path = "./assets/images/skybox_f.kbi"
 		source_path = "./assets/images/source/skybox_f.jpg"
 	}
 	{
 		name = "skybox_l"
+		type = "image"
 		path = "./assets/images/skybox_l.kbi"
 		source_path = "./assets/images/source/skybox_l.jpg"
 	}
 	{
 		name = "skybox_r"
+		type = "image"
 		path = "./assets/images/skybox_r.kbi"
 		source_path = "./assets/images/source/skybox_r.jpg"
 	}
 	{
 		name = "skybox_u"
+		type = "image"
 		path = "./assets/images/skybox_u.kbi"
 		source_path = "./assets/images/source/skybox_u.jpg"
 	}
 	{
 		name = "sponza_arch_combined"
+		type = "image"
 		path = "./assets/images/sponza_arch_combined.kbi"
 		source_path = "./assets/images/source/sponza_arch_combined.png"
 	}
 	{
 		name = "sponza_arch_ddn"
+		type = "image"
 		path = "./assets/images/sponza_arch_ddn.kbi"
 		source_path = "./assets/images/source/sponza_arch_ddn.tga"
 	}
 	{
 		name = "sponza_arch_diff"
+		type = "image"
 		path = "./assets/images/sponza_arch_diff.kbi"
 		source_path = "./assets/images/source/sponza_arch_diff.tga"
 	}
 	{
 		name = "sponza_bricks_a_combined"
+		type = "image"
 		path = "./assets/images/sponza_bricks_a_combined.kbi"
 		source_path = "./assets/images/source/sponza_bricks_a_combined.png"
 	}
 	{
 		name = "sponza_bricks_a_ddn"
+		type = "image"
 		path = "./assets/images/sponza_bricks_a_ddn.kbi"
 		source_path = "./assets/images/source/sponza_bricks_a_ddn.tga"
 	}
 	{
 		name = "sponza_bricks_a_diff"
+		type = "image"
 		path = "./assets/images/sponza_bricks_a_diff.kbi"
 		source_path = "./assets/images/source/sponza_bricks_a_diff.tga"
 	}
 	{
 		name = "sponza_ceiling_a_combined"
+		type = "image"
 		path = "./assets/images/sponza_ceiling_a_combined.kbi"
 		source_path = "./assets/images/source/sponza_ceiling_a_combined.png"
 	}
 	{
 		name = "sponza_ceiling_a_ddn"
+		type = "image"
 		path = "./assets/images/sponza_ceiling_a_ddn.kbi"
 		source_path = "./assets/images/source/sponza_ceiling_a_ddn.tga"
 	}
 	{
 		name = "sponza_ceiling_a_diff"
+		type = "image"
 		path = "./assets/images/sponza_ceiling_a_diff.kbi"
 		source_path = "./assets/images/source/sponza_ceiling_a_diff.tga"
 	}
 	{
 		name = "sponza_column_a_combined"
+		type = "image"
 		path = "./assets/images/sponza_column_a_combined.kbi"
 		source_path = "./assets/images/source/sponza_column_a_combined.png"
 	}
 	{
 		name = "sponza_column_a_ddn"
+		type = "image"
 		path = "./assets/images/sponza_column_a_ddn.kbi"
 		source_path = "./assets/images/source/sponza_column_a_ddn.tga"
 	}
 	{
 		name = "sponza_column_a_diff"
+		type = "image"
 		path = "./assets/images/sponza_column_a_diff.kbi"
 		source_path = "./assets/images/source/sponza_column_a_diff.tga"
 	}
 	{
 		name = "sponza_column_b_combined"
+		type = "image"
 		path = "./assets/images/sponza_column_b_combined.kbi"
 		source_path = "./assets/images/source/sponza_column_b_combined.png"
 	}
 	{
 		name = "sponza_column_b_ddn"
+		type = "image"
 		path = "./assets/images/sponza_column_b_ddn.kbi"
 		source_path = "./assets/images/source/sponza_column_b_ddn.tga"
 	}
 	{
 		name = "sponza_column_b_diff"
+		type = "image"
 		path = "./assets/images/sponza_column_b_diff.kbi"
 		source_path = "./assets/images/source/sponza_column_b_diff.tga"
 	}
 	{
 		name = "sponza_column_c_combined"
+		type = "image"
 		path = "./assets/images/sponza_column_c_combined.kbi"
 		source_path = "./assets/images/source/sponza_column_c_combined.png"
 	}
 	{
 		name = "sponza_column_c_ddn"
+		type = "image"
 		path = "./assets/images/sponza_column_c_ddn.kbi"
 		source_path = "./assets/images/source/sponza_column_c_ddn.tga"
 	}
 	{
 		name = "sponza_column_c_diff"
+		type = "image"
 		path = "./assets/images/sponza_column_c_diff.kbi"
 		source_path = "./assets/images/source/sponza_column_c_diff.tga"
 	}
 	{
 		name = "sponza_curtain_diff"
+		type = "image"
 		path = "./assets/images/sponza_curtain_diff.kbi"
 		source_path = "./assets/images/source/sponza_curtain_diff.tga"
 	}
 	{
 		name = "sponza_curtain_blue_diff"
+		type = "image"
 		path = "./assets/images/sponza_curtain_blue_diff.kbi"
 		source_path = "./assets/images/source/sponza_curtain_blue_diff.tga"
 	}
 	{
 		name = "sponza_curtain_combined"
+		type = "image"
 		path = "./assets/images/sponza_curtain_combined.kbi"
 		source_path = "./assets/images/source/sponza_curtain_combined.png"
 	}
 	{
 		name = "sponza_curtain_ddn"
+		type = "image"
 		path = "./assets/images/sponza_curtain_ddn.kbi"
 		source_path = "./assets/images/source/sponza_curtain_ddn.tga"
 	}
 	{
 		name = "sponza_curtain_green_diff"
+		type = "image"
 		path = "./assets/images/sponza_curtain_green_diff.kbi"
 		source_path = "./assets/images/source/sponza_curtain_green_diff.tga"
 	}
 	{
 		name = "sponza_details_combined"
+		type = "image"
 		path = "./assets/images/sponza_details_combined.kbi"
 		source_path = "./assets/images/source/sponza_details_combined.png"
 	}
 	{
 		name = "sponza_details_ddn"
+		type = "image"
 		path = "./assets/images/sponza_details_ddn.kbi"
 		source_path = "./assets/images/source/sponza_details_ddn.tga"
 	}
 	{
 		name = "sponza_details_diff"
+		type = "image"
 		path = "./assets/images/sponza_details_diff.kbi"
 		source_path = "./assets/images/source/sponza_details_diff.tga"
 	}
 	{
 		name = "sponza_fabric_diff"
+		type = "image"
 		path = "./assets/images/sponza_fabric_diff.kbi"
 		source_path = "./assets/images/source/sponza_fabric_diff.tga"
 	}
 	{
 		name = "sponza_fabric_blue_diff"
+		type = "image"
 		path = "./assets/images/sponza_fabric_blue_diff.kbi"
 		source_path = "./assets/images/source/sponza_fabric_blue_diff.tga"
 	}
 	{
 		name = "sponza_fabric_combined"
+		type = "image"
 		path = "./assets/images/sponza_fabric_combined.kbi"
 		source_path = "./assets/images/source/sponza_fabric_combined.png"
 	}
 	{
 		name = "sponza_fabric_ddn"
+		type = "image"
 		path = "./assets/images/sponza_fabric_ddn.kbi"
 		source_path = "./assets/images/source/sponza_fabric_ddn.tga"
 	}
 	{
 		name = "sponza_fabric_green_diff"
+		type = "image"
 		path = "./assets/images/sponza_fabric_green_diff.kbi"
 		source_path = "./assets/images/source/sponza_fabric_green_diff.tga"
 	}
 	{
 		name = "sponza_flagpole_diff"
+		type = "image"
 		path = "./assets/images/sponza_flagpole_diff.kbi"
 		source_path = "./assets/images/source/sponza_flagpole_diff.tga"
 	}
 	{
 		name = "sponza_flagpole_combined"
+		type = "image"
 		path = "./assets/images/sponza_flagpole_combined.kbi"
 		source_path = "./assets/images/source/sponza_flagpole_combined.png"
 	}
 	{
 		name = "sponza_flagpole_ddn"
+		type = "image"
 		path = "./assets/images/sponza_flagpole_ddn.kbi"
 		source_path = "./assets/images/source/sponza_flagpole_ddn.tga"
 	}
 	{
 		name = "sponza_floor_a_diff"
+		type = "image"
 		path = "./assets/images/sponza_floor_a_diff.kbi"
 		source_path = "./assets/images/source/sponza_floor_a_diff.tga"
 	}
 	{
 		name = "sponza_floor_a_combined"
+		type = "image"
 		path = "./assets/images/sponza_floor_a_combined.kbi"
 		source_path = "./assets/images/source/sponza_floor_a_combined.png"
 	}
 	{
 		name = "sponza_floor_a_ddn"
+		type = "image"
 		path = "./assets/images/sponza_floor_a_ddn.kbi"
 		source_path = "./assets/images/source/sponza_floor_a_ddn.tga"
 	}
 	{
 		name = "sponza_roof_diff"
+		type = "image"
 		path = "./assets/images/sponza_roof_diff.kbi"
 		source_path = "./assets/images/source/sponza_roof_diff.tga"
 	}
 	{
 		name = "sponza_roof_combined"
+		type = "image"
 		path = "./assets/images/sponza_roof_combined.kbi"
 		source_path = "./assets/images/source/sponza_roof_combined.png"
 	}
 	{
 		name = "sponza_roof_ddn"
+		type = "image"
 		path = "./assets/images/sponza_roof_ddn.kbi"
 		source_path = "./assets/images/source/sponza_roof_ddn.tga"
 	}
 	{
 		name = "sponza_thorn_diff"
+		type = "image"
 		path = "./assets/images/sponza_thorn_diff.kbi"
 		source_path = "./assets/images/source/sponza_thorn_diff.tga"
 	}
 	{
 		name = "sponza_thorn_combined"
+		type = "image"
 		path = "./assets/images/sponza_thorn_combined.kbi"
 		source_path = "./assets/images/source/sponza_thorn_combined.png"
 	}
 	{
 		name = "sponza_thorn_ddn"
+		type = "image"
 		path = "./assets/images/sponza_thorn_ddn.kbi"
 		source_path = "./assets/images/source/sponza_thorn_ddn.tga"
 	}
 	{
 		name = "terrain_heightmap"
+		type = "image"
 		path = "./assets/images/terrain_heightmap.kbi"
 		source_path = "./assets/images/source/terrain_heightmap.png"
 	}
 	{
 		name = "terrain_heightmap3"
+		type = "image"
 		path = "./assets/images/terrain_heightmap3.kbi"
 		source_path = "./assets/images/source/terrain_heightmap3.png"
 	}
 	{
 		name = "terrain_heightmap_256"
+		type = "image"
 		path = "./assets/images/terrain_heightmap_256.kbi"
 		source_path = "./assets/images/source/terrain_heightmap_256.png"
 	}
 	{
 		name = "terrain_heightmap_512"
+		type = "image"
 		path = "./assets/images/terrain_heightmap_512.kbi"
 		source_path = "./assets/images/source/terrain_heightmap_512.png"
 	}
 	{
 		name = "test_bc"
+		type = "image"
 		path = "./assets/images/test_bc.kbi"
 		source_path = "./assets/images/source/test_bc.tga"
 	}
 	{
 		name = "test512"
+		type = "image"
 		path = "./assets/images/test512.kbi"
 		source_path = "./assets/images/source/test512.png"
 	}
 	{
 		name = "testice"
+		type = "image"
 		path = "./assets/images/testice.kbi"
 		source_path = "./assets/images/source/testice.jpg"
 	}
 	{
 		name = "transparent_test"
+		type = "image"
 		path = "./assets/images/transparent_test.kbi"
 		source_path = "./assets/images/source/transparent_test.png"
 	}
 	{
 		name = "vase_dif"
+		type = "image"
 		path = "./assets/images/vase_dif.kbi"
 		source_path = "./assets/images/source/vase_dif.tga"
 	}
 	{
 		name = "vase_combined"
+		type = "image"
 		path = "./assets/images/vase_combined.kbi"
 		source_path = "./assets/images/source/vase_combined.png"
 	}
 	{
 		name = "vase_ddn"
+		type = "image"
 		path = "./assets/images/vase_ddn.kbi"
 		source_path = "./assets/images/source/vase_ddn.tga"
 	}
 	{
 		name = "vase_hanging_bc"
+		type = "image"
 		path = "./assets/images/vase_hanging_bc.kbi"
 		source_path = "./assets/images/source/vase_hanging_bc.tga"
 	}
 	{
 		name = "vase_hanging_combined"
+		type = "image"
 		path = "./assets/images/vase_hanging_combined.kbi"
 		source_path = "./assets/images/source/vase_hanging_combined.png"
 	}
 	{
 		name = "vase_hanging_ddn"
+		type = "image"
 		path = "./assets/images/vase_hanging_ddn.kbi"
 		source_path = "./assets/images/source/vase_hanging_ddn.tga"
 	}
 	{
 		name = "vase_plant_bc"
+		type = "image"
 		path = "./assets/images/vase_plant_bc.kbi"
 		source_path = "./assets/images/source/vase_plant_bc.tga"
 	}
 	{
 		name = "vase_plant_combined"
+		type = "image"
 		path = "./assets/images/vase_plant_combined.kbi"
 		source_path = "./assets/images/source/vase_plant_combined.png"
 	}
 	{
 		name = "vase_plant_ddn"
+		type = "image"
 		path = "./assets/images/vase_plant_ddn.kbi"
 		source_path = "./assets/images/source/vase_plant_ddn.tga"
 	}
 	{
 		name = "vase_round_bc"
+		type = "image"
 		path = "./assets/images/vase_round_bc.kbi"
 		source_path = "./assets/images/source/vase_round_bc.tga"
 	}
 	{
 		name = "vase_round_combined"
+		type = "image"
 		path = "./assets/images/vase_round_combined.kbi"
 		source_path = "./assets/images/source/vase_round_combined.png"
 	}
 	{
 		name = "vase_round_ddn"
+		type = "image"
 		path = "./assets/images/vase_round_ddn.kbi"
 		source_path = "./assets/images/source/vase_round_ddn.tga"
 	}
 	{
 		name = "wavy-sand_albedo"
+		type = "image"
 		path = "./assets/images/wavy-sand_albedo.kbi"
 		source_path = "./assets/images/source/wavy-sand_albedo.png"
 	}
 	{
 		name = "wavy-sand_combined"
+		type = "image"
 		path = "./assets/images/wavy-sand_combined.kbi"
 		source_path = "./assets/images/source/wavy-sand_combined.png"
 	}
 	{
 		name = "wavy-sand_normal"
+		type = "image"
 		path = "./assets/images/wavy-sand_normal.kbi"
 		source_path = "./assets/images/source/wavy-sand_normal.png"
 	}
 	{
 		name = "wispy-grass-meadow_albedo"
+		type = "image"
 		path = "./assets/images/wispy-grass-meadow_albedo.kbi"
 		source_path = "./assets/images/source/wispy-grass-meadow_albedo.png"
 	}
 	{
 		name = "wispy-grass-meadow_combined"
+		type = "image"
 		path = "./assets/images/wispy-grass-meadow_combined.kbi"
 		source_path = "./assets/images/source/wispy-grass-meadow_combined.png"
 	}
 	{
 		name = "wispy-grass-meadow_normal"
+		type = "image"
 		path = "./assets/images/wispy-grass-meadow_normal.kbi"
 		source_path = "./assets/images/source/wispy-grass-meadow_normal.png"
 	}

@@ -65,21 +65,26 @@ NOTE: This project _does not_ work under WSL, nor will it in the forseeable futu
 - Vulkan SDK: `winget install khronosgroup.vulkansdk` OR download from https://vulkan.lunarg.com/
 - Assimp: Go here to get an installer: `https://www.assimp.org/`, then downloads. Yes it takes you to an itch.io page, but it's legit.
   - After the installer runs, reboot, then add the install dir to PATH (probably `C:\Program Files\Assimp`)
+  - Also create a system-level environment variable called ASSIMP with this same path as its value. Work will be done in the future to remove this requirement.
 
 ### Prerequisites for Linux
 
 Install these via package manager:
 
-- `sudo apt install llvm` or `sudo pacman -S llvm`
-- `sudo apt install git` or `sudo pacman -S git`
-- `sudo apt install make`
-- Assimp (for tooling/model imports): `sudo apt install assimp` or `sudo pacman -S assimp`
+#### Debian/Ubuntu:
 
-Required for X11:
+- `sudo apt install llvm git make libx11-dev libxkbcommon-x11-dev libx11-xcb-dev`
 
-- `sudo apt install libx11-dev`
-- `sudo apt install libxkbcommon-x11-dev`
-- `sudo apt install libx11-xcb-dev`
+#### Arch:
+
+- `sudo pacman -S llvm`
+- `sudo pacman -S git`
+
+#### Fedora:
+
+- `sudo dnf install git make clang libX11-devel libxcb-devel libxkbcommon-devel systemd-devel openal-soft-devel vulkan-headers libshaderc-devel sudo dnf vulkan-validation-layers`
+
+- Assimp (for tooling/model imports): `sudo apt install assimp` or `sudo pacman -S assimp` `sudo dnf install assimp-devel`
 
 NOTE: Wayland not natively supported (yet)
 
@@ -134,10 +139,33 @@ See the setup videos in the series for Windows or Linux for details. macOS setup
 
 # Building
 
+## Initial build
+
+The first time you build, it's a good idea to run the 'setup' first. There are things in place to _try_ checking for this,
+but at the moment they don't always work. This needs to be done once (unless there is a major update that specifies it should
+be done again).
+
+- All that needs to be done for this is to run `make setup` from the project root.
+
+## General builds
+
 There are 2 build types available, Debug and Release. Debug includes debug symbols and is optimal for development and exploration, while Release is ideal for performance. There is also a "clean" available to clean out the built files, which is useful when switching between Debug/Release, or when strange linking errors occur because of missing files (i.e. switching branches).
 
 On all platforms, you can simply browse to the root directory of the project in a terminal/command prompt and run either `make all-debug`, `make all-release`, or `make clean`.
 There are alternative shell script (macOS/Linux) and batch files (Windows) available for convenience here as well.
+
+## Asset Imports
+
+There are a number of assets across several modules and plugins with the engine and the Testbed project which must be imported for Testbed to run. They can be run individually by using the launch options within VSCode such as "Testbed - Import updated assets from manifest". If not using VSCode, they may be run from the command line from the base folder:
+
+`./bin/kohi.tools importmanifest <path-to-manifest> [options]`
+
+So, to re-import only assets which have been updated or not-yet imported, you could run with the following options:
+
+`./bin/kohi.tools importmanifest testbed.kapp/asset_manifest.kson --updated-only`
+
+You can also run all module/plugin asset imports at once by running the `import-updated-assets.sh` (MacOS/Linux) or `import-updated-assets.bat` (Windows).
+There is also a task available in the VSCode config for this called "Import ALL updated assets for all modules".
 
 # Running
 

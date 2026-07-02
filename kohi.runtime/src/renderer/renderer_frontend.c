@@ -510,7 +510,7 @@ void renderer_viewport_reset(void) {
 
 void renderer_scissor_set(rect_2di rect) {
 	if (rect.width == 0 || rect.height == 0) {
-		KERROR("%s: width/height should not be zero");
+		KERROR("%s: width/height should not be zero", __FUNCTION__);
 	}
 	renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
 	state_ptr->backend->scissor_set(state_ptr->backend, rect);
@@ -574,7 +574,7 @@ void renderer_begin_rendering(struct renderer_system_state* state, struct frame_
 	KASSERT_MSG(render_area.width != 0 && render_area.height != 0, "renderer_begin_rendering must have a width and height.");
 
 // Verify handles in debug builds, but not release.
-#ifdef KOHI_DEBUG
+#if KOHI_DEBUG
 	// If colour targets are used, none should be invalid.
 	if (colour_target_count) {
 		for (u32 i = 0; i < colour_target_count; ++i) {
@@ -630,11 +630,13 @@ void renderer_texture_resources_release(struct renderer_system_state* state, kte
 	}
 }
 
-b8 renderer_texture_write_data(struct renderer_system_state* state, ktexture t, u32 offset, u32 size, const u8* pixels) {
+b8 renderer_texture_write_data(struct renderer_system_state* state, ktexture t, u32 bpp, u32 px_x, u32 px_y, i32 layer, u32 width, u32 height, const u8* pixels, b8 defer_to_next_frame) {
 	if (state && t != INVALID_KTEXTURE) {
-		b8 include_in_frame_workload = (state->frame_number > 0); // FIXME: Perhaps it's time to move this to its own queue.
-		b8 result = state->backend->texture_write_data(state->backend, t, offset, size, pixels, include_in_frame_workload);
-		if (!include_in_frame_workload) {
+		if (state->frame_number > 0) {
+			defer_to_next_frame = true;
+		}
+		b8 result = state->backend->texture_write_data(state->backend, t, bpp, px_x, px_y, layer, width, height, pixels, defer_to_next_frame);
+		if (!defer_to_next_frame) {
 			// TODO: update generation?
 		}
 		return result;
@@ -911,7 +913,7 @@ void renderer_shader_set_immediate_data(struct renderer_system_state* state, ksh
 	KASSERT_DEBUG(data);
 	KASSERT_DEBUG(size);
 	KASSERT_DEBUG(shader != KSHADER_INVALID);
-	KASSERT_DEBUG(state->backend->shader_set_immediate_data(state->backend, shader, data, size));
+	KASSERT(state->backend->shader_set_immediate_data(state->backend, shader, data, size));
 }
 
 void renderer_shader_set_binding_data(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u64 offset, void* data, u64 size) {
@@ -919,21 +921,21 @@ void renderer_shader_set_binding_data(struct renderer_system_state* state, kshad
 	KASSERT_DEBUG(data);
 	KASSERT_DEBUG(size);
 	KASSERT_DEBUG(shader != KSHADER_INVALID);
-	KASSERT_DEBUG(state->backend->shader_set_binding_data(state->backend, shader, binding_set, instance_id, binding_index, offset, data, size));
+	KASSERT(state->backend->shader_set_binding_data(state->backend, shader, binding_set, instance_id, binding_index, offset, data, size));
 }
 
 void renderer_shader_set_binding_texture(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ktexture texture) {
 	KASSERT_DEBUG(state);
 	KASSERT_DEBUG(texture != INVALID_KTEXTURE);
 	KASSERT_DEBUG(shader != KSHADER_INVALID);
-	KASSERT_DEBUG(state->backend->shader_set_binding_texture(state->backend, shader, binding_set, instance_id, binding_index, array_index, texture));
+	KASSERT(state->backend->shader_set_binding_texture(state->backend, shader, binding_set, instance_id, binding_index, array_index, texture));
 }
 
 void renderer_shader_set_binding_sampler(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ksampler_backend sampler) {
 	KASSERT_DEBUG(state);
 	KASSERT_DEBUG(sampler != KSAMPLER_BACKEND_INVALID);
 	KASSERT_DEBUG(shader != KSHADER_INVALID);
-	KASSERT_DEBUG(state->backend->shader_set_binding_sampler(state->backend, shader, binding_set, instance_id, binding_index, array_index, sampler));
+	KASSERT(state->backend->shader_set_binding_sampler(state->backend, shader, binding_set, instance_id, binding_index, array_index, sampler));
 }
 
 b8 renderer_shader_apply_binding_set(struct renderer_system_state* state, kshader shader, u8 binding_set, u32 instance_id) {
@@ -1057,7 +1059,7 @@ void renderer_renderbuffer_destroy(struct renderer_system_state* state, krenderb
 	}
 
 	krenderbuffer_data* buffer = &state->renderbuffers[handle];
-	KTRACE("Unregistering renderbuffer '%s'.", kname_string_get(buffer->name));
+	/* KTRACE("Unregistering renderbuffer '%s'.", kname_string_get(buffer->name)); */
 	// Just setting the array entry's type to unknown removes it from registration.
 	buffer->type = RENDERBUFFER_TYPE_UNKNOWN;
 

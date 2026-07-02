@@ -25,6 +25,8 @@ KAPI b8 application_render_frame(struct application* game_inst, struct frame_dat
 
 KAPI void application_on_window_resize(struct application* game_inst, const struct kwindow* window);
 
+KAPI void application_on_action(struct application* app_inst, u32 action_code);
+
 KAPI void application_shutdown(struct application* game_inst);
 
 KAPI void application_lib_on_unload(struct application* game_inst);

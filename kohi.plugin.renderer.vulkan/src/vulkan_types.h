@@ -36,9 +36,10 @@
  * @brief Checks the given expression's return value against VK_SUCCESS.
  * @param expr The expression whose result should be checked.
  */
-#define VK_CHECK(expr)               \
-	{                                \
-		KASSERT(expr == VK_SUCCESS); \
+#define VK_CHECK(expr)                                                                                 \
+	{                                                                                                  \
+		VkResult vulkan_expr_result = expr;                                                            \
+		KASSERT_MSG(vulkan_expr_result == VK_SUCCESS, vulkan_result_string(vulkan_expr_result, true)); \
 	}
 
 struct vulkan_context;
@@ -258,7 +259,7 @@ typedef struct vulkan_command_buffer {
 	/** @brief The internal command buffer handle. */
 	VkCommandBuffer handle;
 
-#ifdef KOHI_DEBUG
+#if KOHI_DEBUG
 	// Name, kept for debugging purposes.
 	const char* name;
 #endif
@@ -504,7 +505,7 @@ typedef struct vulkan_shader_binding_set_instance_state {
 	// Used to determine if this instance state has already been updated for a given frame.
 	u16 renderer_frame_number;
 
-#ifdef KOHI_DEBUG
+#if KOHI_DEBUG
 	// Also the binding set index. Just here for debugging purposes (debug builds only)
 	u32 descriptor_set_index;
 #endif

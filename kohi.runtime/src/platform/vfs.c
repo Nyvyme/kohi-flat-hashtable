@@ -40,7 +40,7 @@ b8 vfs_initialize(u64* memory_requirement, vfs_state* state, const vfs_config* c
 	}
 
 	kpackage primary_package = {0};
-	if (!kpackage_create_from_manifest(&manifest, &primary_package)) {
+	if (!kpackage_create_from_manifest(config->manifest_file_path, &manifest, &primary_package)) {
 		KERROR("Failed to create package from primary asset manifest. See logs for details.");
 		return false;
 	}
@@ -114,6 +114,37 @@ void vfs_asset_job_fail(void* result_params) {
 	if (result) {
 		//
 	}
+}
+
+kname* vfs_asset_names_by_type(vfs_state* state, kasset_type type, kname package_name, u32* out_count) {
+	if (!state || !out_count) {
+		return KNULL;
+	}
+
+	kname* results = KNULL;
+	u32 package_count = darray_length(state->packages);
+	kname* names_da = darray_create(kname);
+	for (u32 i = 0; i < package_count; ++i) {
+		kpackage* package = &state->packages[i];
+		if (package_name == INVALID_KNAME || package->name == package_name) {
+			u32 pcount = 0;
+			kname* pnames = kpackage_asset_names_by_type(package, type, &pcount);
+			if (pcount) {
+				// push range; for now just loop...
+				for (u32 p = 0; p < pcount; ++p) {
+					darray_push(names_da, pnames[p]);
+				}
+				KFREE_TYPE_CARRAY(pnames, kname, pcount);
+			}
+		}
+	}
+	*out_count = darray_length(names_da);
+	if (*out_count) {
+		KDUPLICATE_TYPE_CARRAY(results, names_da, kname, *out_count);
+	}
+	darray_destroy(names_da);
+
+	return results;
 }
 
 void vfs_request_asset(vfs_state* state, vfs_request_info info) {
@@ -373,6 +404,22 @@ void vfs_asset_data_cleanup(vfs_asset_data* data) {
 	}
 }
 
+struct kpackage* vfs_package_get(vfs_state* state, kname package_name) {
+	if (!state || !package_name) {
+		return KNULL;
+	}
+
+	u32 count = darray_length(state->packages);
+	for (u32 i = 0; i < count; ++i) {
+		if (state->packages[i].name == package_name) {
+			return &state->packages[i];
+		}
+	}
+
+	KERROR("%s - Unable to find package '%k'.", __FUNCTION__, package_name);
+	return KNULL;
+}
+
 #if KOHI_HOT_RELOAD
 static void file_deleted(u32 watcher_id, void* context) {
 	vfs_state* state = (vfs_state*)context;
@@ -468,7 +515,7 @@ static b8 process_manifest_refs(vfs_state* state, const asset_manifest* manifest
 			}
 
 			kpackage package = {0};
-			if (!kpackage_create_from_manifest(&new_manifest, &package)) {
+			if (!kpackage_create_from_manifest(manifest_file_path, &new_manifest, &package)) {
 				KERROR("Failed to create package from asset manifest. See logs for details.");
 				return false;
 			}

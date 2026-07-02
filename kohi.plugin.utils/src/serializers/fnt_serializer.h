@@ -26,7 +26,7 @@ typedef struct fnt_source_asset {
 	kasset_bitmap_font_page* pages;
 } fnt_source_asset;
 
-b8 fnt_serializer_serialize(const fnt_source_asset* source_asset, const char** out_file_text);
+KAPI b8 fnt_serializer_serialize(const fnt_source_asset* source_asset, const char** out_file_text);
 
 /**
  * Attempts to deserialize the contents of FNT bitmap font text file.
@@ -35,4 +35,4 @@ b8 fnt_serializer_serialize(const fnt_source_asset* source_asset, const char** o
  * @param out_fnt_source_asset A pointer to hold the deserialized bitmap font data. Optional unless fnt_file_text is provided, then required.
  * @return True on success; otherwise false.
  */
-b8 fnt_serializer_deserialize(const char* fnt_file_text, fnt_source_asset* out_fnt_source_asset);
+KAPI b8 fnt_serializer_deserialize(const char* fnt_file_text, fnt_source_asset* out_fnt_source_asset);

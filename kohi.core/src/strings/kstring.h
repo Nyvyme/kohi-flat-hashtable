@@ -287,6 +287,15 @@ KAPI i32 string_last_index_of(const char* str, char c);
 KAPI i32 string_index_of_str(const char* str_0, const char* str_1);
 
 /**
+ * @brief Returns the index of the first occurance of str_1 in str_0; otherwise -1. Case-insensitive.
+ *
+ * @param str_0 The string to be scanned.
+ * @param str_1 The substring to search for.
+ * @return The index of the first occurance of str_1; otherwise -1 if not found.
+ */
+KAPI i32 string_index_of_stri(const char* str_0, const char* str_1);
+
+/**
  * @brief Indicates if str_0 starts with str_1. Case-sensitive.
  *
  * @param str_0 The string to be scanned.

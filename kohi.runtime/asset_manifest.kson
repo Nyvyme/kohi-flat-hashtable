@@ -4,152 +4,218 @@ references = [
 assets = [
     {
         name = "Shader.Colour3D"
+		type = "shader"
         path = "assets/shaders/Shader.Colour3D.ksc"
     }
     {
         name = "Shader.Colour3D_frag"
+		type = "text"
         path = "assets/shaders/Shader.Colour3D_frag.glsl"
     }
     {
         name = "Shader.Depth_Prepass"
+		type = "shader"
         path = "assets/shaders/Shader.Depth_Prepass.ksc"
     }
     {
         name = "Shader.Depth_Prepass_vert"
+		type = "text"
         path = "assets/shaders/Shader.Depth_Prepass_vert.glsl"
     }
     {
         name = "Shader.Colour3D_vert"
+		type = "text"
         path = "assets/shaders/Shader.Colour3D_vert.glsl"
     }
     {
         name = "Shader.Debug3D"
+		type = "shader"
         path = "assets/shaders/Shader.Debug3D.ksc"
     }
     {
         name = "Shader.Debug3D_vert"
+		type = "text"
         path = "assets/shaders/Shader.Debug3D_vert.glsl"
     }
     {
         name = "Shader.Debug3D_frag"
+		type = "text"
         path = "assets/shaders/Shader.Debug3D_frag.glsl"
     }
     {
         name = "Shader.MaterialStandard_frag"
+		type = "text"
         path = "assets/shaders/Shader.MaterialStandard_frag.glsl"
     }
     {
         name = "Shader.MaterialStandard_vert"
+		type = "text"
         path = "assets/shaders/Shader.MaterialStandard_vert.glsl"
     }
     {
         name = "Shader.MaterialStandardSkinned_vert"
+		type = "text"
         path = "assets/shaders/Shader.MaterialStandardSkinned_vert.glsl"
     }
     {
+        name = "Shader.HF_Terrain"
+		type = "shader"
+        path = "assets/shaders/Shader.HF_Terrain.ksc"
+    }
+    {
+        name = "Shader.HF_Terrain_frag"
+		type = "text"
+        path = "assets/shaders/Shader.HF_Terrain_frag.glsl"
+    }
+    {
+        name = "Shader.HF_Terrain_vert"
+		type = "text"
+        path = "assets/shaders/Shader.HF_Terrain_vert.glsl"
+    }
+    {
         name = "Shader.PBR_Terrain"
+		type = "shader"
         path = "assets/shaders/Shader.PBR_Terrain.ksc"
     }
     {
         name = "Shader.PBR_Terrain_frag"
+		type = "text"
         path = "assets/shaders/Shader.PBR_Terrain_frag.glsl"
     }
     {
         name = "Shader.PBR_Terrain_vert"
+		type = "text"
         path = "assets/shaders/Shader.PBR_Terrain_vert.glsl"
     }
     {
         name = "Shader.Shadow_Model"
+		type = "shader"
         path = "assets/shaders/Shader.Shadow_Model.ksc"
     }
     {
         name = "Shader.Shadow_Model_frag"
+		type = "text"
         path = "assets/shaders/Shader.Shadow_Model_frag.glsl"
     }
     {
         name = "Shader.Shadow_Model_vert"
+		type = "text"
         path = "assets/shaders/Shader.Shadow_Model_vert.glsl"
     }
     {
         name = "Shader.Shadow_ModelSkinned_vert"
+		type = "text"
         path = "assets/shaders/Shader.Shadow_ModelSkinned_vert.glsl"
     }
     {
         name = "Shader.Shadow_Terrain"
+		type = "shader"
         path = "assets/shaders/Shader.Shadow_Terrain.ksc"
     }
     {
         name = "Shader.Shadow_Terrain_frag"
+		type = "text"
         path = "assets/shaders/Shader.Shadow_Terrain_frag.glsl"
     }
     {
         name = "Shader.Shadow_Terrain_vert"
+		type = "text"
         path = "assets/shaders/Shader.Shadow_Terrain_vert.glsl"
     }
     {
+        name = "Shader.Shadow_HFTerrain"
+		type = "shader"
+        path = "assets/shaders/Shader.Shadow_HFTerrain.ksc"
+    }
+    {
+        name = "Shader.Shadow_HFTerrain_frag"
+		type = "text"
+        path = "assets/shaders/Shader.Shadow_HFTerrain_frag.glsl"
+    }
+    {
+        name = "Shader.Shadow_HFTerrain_vert"
+		type = "text"
+        path = "assets/shaders/Shader.Shadow_HFTerrain_vert.glsl"
+    }
+    {
         name = "Shader.Skybox"
+		type = "shader"
         path = "assets/shaders/Shader.Skybox.ksc"
     }
     {
         name = "Shader.Skybox_frag"
+		type = "text"
         path = "assets/shaders/Shader.Skybox_frag.glsl"
     }
     {
         name = "Shader.Skybox_vert"
+		type = "text"
         path = "assets/shaders/Shader.Skybox_vert.glsl"
     }
     {
         name = "Texture.DefaultWaterDUDV"
+		type = "image"
         path = "assets/images/Texture.DefaultWaterDUDV.kbi"
         source_path = "assets/images/source/Texture.DefaultWaterDUDV.png"
     }
     {
         name = "Texture.DefaultWaterNormal"
+		type = "image"
         path = "assets/images/Texture.DefaultWaterNormal.kbi"
         source_path = "assets/images/source/Texture.DefaultWaterNormal.jpg"
     }
     {
         name = "BitmapFont.NotoSans21px"
+		type = "bitmap_font"
         path = "./assets/fonts/BitmapFont.NotoSans21px.kbf"
         source_path = "./assets/fonts/source/BitmapFont.NotoSans21px.fnt"
     }
     {
         name = "Texture.BitmapFont.NotoSans21px_0"
+		type = "image"
         path = "./assets/images/Texture.BitmapFont.NotoSans21px_0.kbi"
         source_path = "./assets/images/source/Texture.BitmapFont.NotoSans21px_0.png"
     }
     {
         name = "BitmapFont.UbuntuMono21px"
+		type = "bitmap_font"
         path = "./assets/fonts/BitmapFont.UbuntuMono21px.kbf"
         source_path = "./assets/fonts/source/BitmapFont.UbuntuMono21px.fnt"
     }
     {
         name = "Texture.BitmapFont.UbuntuMono21px_0"
+		type = "image"
         path = "./assets/images/Texture.BitmapFont.UbuntuMono21px_0.kbi"
         source_path = "./assets/images/source/Texture.BitmapFont.UbuntuMono21px_0.png"
     }
     {
         name = "SystemFont.NotoSansCJK"
+		type = "system_font"
         path = "./assets/fonts/SystemFont.NotoSansCJK.ksf"
     }
     {
         name = "Binary.SystemFont.NotoSansCJK-Regular"
+		type = "binary"
         path = "./assets/fonts/Binary.SystemFont.NotoSansCJK-Regular.ttc"
     }
     {
         name = "SystemFont.NotoSansCJK-Bold"
+		type = "system_font"
         path = "./assets/fonts/SystemFont.NotoSansCJK-Bold.ksf"
     }
     {
         name = "Binary.SystemFont.NotoSansCJK-Bold"
+		type = "binary"
         path = "./assets/fonts/Binary.SystemFont.NotoSansCJK-Bold.ttc"
     }
     {
         name = "SystemFont.UbuntuMono"
+		type = "system_font"
         path = "./assets/fonts/SystemFont.UbuntuMono.ksf"
     }
     {
         name = "Binary.SystemFont.UbuntuMono-R"
+		type = "binary"
         path = "./assets/fonts/Binary.SystemFont.UbuntuMono-R.ttf"
     }
 ]

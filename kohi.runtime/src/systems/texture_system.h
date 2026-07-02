@@ -25,6 +25,21 @@ typedef struct texture_system_config {
 	u16 max_texture_count;
 } texture_system_config;
 
+typedef struct ktexture_properties {
+	/** @brief The texture type. */
+	ktexture_type type;
+	/** @brief The texture width. */
+	u32 width;
+	/** @brief The texture height. */
+	u32 height;
+	/** @brief The format of the texture data. */
+	kpixel_format format;
+	/** @brief Holds various flags for this texture. */
+	ktexture_flag_bits flags;
+	/** @brief For arrayed textures, how many "layers" there are. Otherwise this is 1. */
+	u16 array_size;
+} ktexture_properties;
+
 /** @brief The default texture name. */
 #define DEFAULT_TEXTURE_NAME "Texture.Default"
 
@@ -256,6 +271,26 @@ KAPI ktexture texture_acquire_from_pixel_data(kpixel_format format, u32 pixel_ar
 
 KAPI ktexture texture_cubemap_acquire_from_pixel_data(kpixel_format format, u32 pixel_array_size, void* pixels, u32 width, u32 height, kname name);
 
+/**
+ * @brief Attempts to acquire a layered texture using the given image asset/package names. Synchronous.
+ *
+ * If it has not yet been loaded,
+ * this triggers it to load. If the texture is not found, a pointer to a texture with default image data
+ * loaded into its layers is returned. If the texture _is_ found and loaded, its reference counter is incremented.
+ * The texture_name is also used as the texture name.
+ * Texture will be auto-released when reference count reaches 0.
+ * Texture will be of KTEXTURE_TYPE_2D_ARRAY.
+ *
+ * This function is considered to be synchronous and is guaranteed to be loaded on return.
+ *
+ * @param texture_name The name to use for the texture.
+ * @param layer_count A nonzero layer count.
+ * @param asset_names An array of asset names to be loaded, one per layer. Length of array must be equal to layer_count.
+ * @param package_names An array of package names to be used when loading. One per layer, aligns with asset_names. Length of array must be equal to layer_count.
+ * @return The loaded texture. Can be a layered texture loaded with default pixel data if not found. INVALID_KTEXTURE if error.
+ */
+KAPI ktexture texture_acquire_layered_sync(kname texture_name, u32 layer_count, kname* asset_names, kname* package_names);
+
 /* KAPI ktexture texture_cubemap_acquire_from_images(const struct kasset_image* images[6]); */
 
 typedef struct ktexture_load_options {
@@ -317,8 +352,22 @@ KAPI b8 texture_resize(ktexture t, u32 width, u32 height, b8 regenerate_internal
  * @param data A pointer to the data to be written.
  * @return True on success; otherwise false.
  */
-KAPI b8 texture_write_data(ktexture t, u32 offset, u32 size, void* data);
+KAPI b8 texture_write_data(ktexture t, u32 bpp, u32 px_x, u32 px_y, i32 layer, u32 width, u32 height, void* data, b8 defer_to_next_frame);
 
+/**
+ * @brief Writes the src texture's pixel data to the provided dest texture on the given layer. May only be used on
+ * array textures. For non-array textures, use texture_write_data.
+ *
+ * @param dest The texture to be written to.
+ * @param layer The index of the layer to write to.
+ * @param src The texture whose pixel data is to be written to dest.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 texture_set_layer_data_from_texture(ktexture dest, u16 layer, ktexture src);
+
+// NOTE: does not increase internal reference count, and should not be used for actual texture references (i.e. during
+// rendering). Use this to obtain texture properties, for example.
+KAPI ktexture texture_get_by_name(kname name);
 KAPI kname texture_name_get(ktexture t);
 
 KAPI u32 texture_width_get(ktexture t);
@@ -326,5 +375,7 @@ KAPI u32 texture_height_get(ktexture t);
 KAPI b8 texture_dimensions_get(ktexture t, u32* out_width, u32* out_height);
 
 KAPI ktexture_flag_bits texture_flags_get(ktexture t);
+
+KAPI b8 texture_properties_get(ktexture t, ktexture_properties* out_properties);
 
 KAPI b8 texture_is_loaded(ktexture t);

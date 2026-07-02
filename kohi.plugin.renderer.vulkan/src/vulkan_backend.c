@@ -604,20 +604,11 @@ void vulkan_renderer_backend_on_window_resized(renderer_backend_interface* backe
 }
 
 void vulkan_renderer_begin_debug_label(renderer_backend_interface* backend, const char* label_text, vec3 colour) {
-#if KOHI_DEBUG
-	vulkan_context* context = (vulkan_context*)backend->internal_context;
-	vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
-	vec4 rgba = (vec4){colour.r, colour.g, colour.b, 1.0f};
-	VK_BEGIN_DEBUG_LABEL(context, command_buffer->handle, label_text, rgba);
-#endif
+	VK_BEGIN_DEBUG_LABEL(backend->internal_context, get_current_command_buffer(backend->internal_context)->handle, label_text, ((vec4){colour.r, colour.g, colour.b, 1.0f}));
 }
 
 void vulkan_renderer_end_debug_label(renderer_backend_interface* backend) {
-#if KOHI_DEBUG
-	vulkan_context* context = (vulkan_context*)backend->internal_context;
-	vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
-#endif
-	VK_END_DEBUG_LABEL(context, command_buffer->handle);
+	VK_END_DEBUG_LABEL(backend->internal_context, get_current_command_buffer(backend->internal_context)->handle);
 }
 
 b8 vulkan_renderer_frame_prepare(renderer_backend_interface* backend, struct frame_data* p_frame_data) {
@@ -2016,7 +2007,7 @@ b8 vulkan_renderer_texture_resize(renderer_backend_interface* backend, ktexture 
 	return true;
 }
 
-b8 vulkan_renderer_texture_write_data(renderer_backend_interface* backend, ktexture t, u32 offset, u32 size, const u8* pixels, b8 include_in_frame_workload) {
+b8 vulkan_renderer_texture_write_data(renderer_backend_interface* backend, ktexture t, u32 bpp, u32 px_x, u32 px_y, i32 layer, u32 width, u32 height, const u8* pixels, b8 defer_to_next_frame) {
 
 	KASSERT_DEBUG_MSG(t != INVALID_KTEXTURE, "Invalid texture handle passed.");
 	vulkan_context* context = (vulkan_context*)backend->internal_context;
@@ -2025,7 +2016,7 @@ b8 vulkan_renderer_texture_write_data(renderer_backend_interface* backend, ktext
 
 	// If no window, can't include in a frame workload.
 	if (!context->current_window) {
-		include_in_frame_workload = false;
+		defer_to_next_frame = false;
 	}
 
 	// Temporary command buffer, if needed.
@@ -2035,7 +2026,9 @@ b8 vulkan_renderer_texture_write_data(renderer_backend_interface* backend, ktext
 	krenderbuffer staging = KRENDERBUFFER_INVALID;
 	// A pointer to the command buffer to be used.
 	vulkan_command_buffer* command_buffer = 0;
-	if (include_in_frame_workload) {
+	u32 depth = texture->images[0].layer_count;
+	u64 size = width * height * (depth ? depth : 1) * (bpp / 8);
+	if (defer_to_next_frame) {
 		// Including in the frame workload means the current window's current-frame staging buffer can be used.
 		u32 current_frame = context->current_window->renderer_state->backend_state->current_frame;
 		staging = context->current_window->renderer_state->backend_state->staging[current_frame];
@@ -2050,13 +2043,13 @@ b8 vulkan_renderer_texture_write_data(renderer_backend_interface* backend, ktext
 
 		// Staging buffer.
 		u64 staging_offset = 0;
-		if (include_in_frame_workload) {
+		if (defer_to_next_frame) {
 			// If including in frame workload, space needs to be allocated from the buffer.
 			renderer_renderbuffer_allocate(backend->frontend_state, staging, size, &staging_offset);
 		}
 
 		// Results in a wait if not included in frame workload.
-		vulkan_buffer_load_range(backend, staging, staging_offset, size, pixels, include_in_frame_workload);
+		vulkan_buffer_load_range(backend, staging, staging_offset, size, pixels, defer_to_next_frame);
 
 		// Need a temp command buffer if not included in frame workload.
 		// HACK: Not doing this breaks things...
@@ -2072,7 +2065,7 @@ b8 vulkan_renderer_texture_write_data(renderer_backend_interface* backend, ktext
 		vulkan_image_transition_layout(context, command_buffer, image, image->format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 		// Copy the data from the buffer.
-		vulkan_image_copy_from_buffer(context, image, context->renderbuffers[staging].infos[0].handle, staging_offset, command_buffer);
+		vulkan_image_copy_from_buffer(context, image, context->renderbuffers[staging].infos[0].handle, size, staging_offset, px_x, px_y, layer, width, height, command_buffer);
 
 		if (image->mip_levels <= 1 || !vulkan_image_mipmaps_generate(context, image, command_buffer)) {
 			// If mip generation isn't needed or fails, fall back to ordinary transition.
@@ -2092,7 +2085,7 @@ b8 vulkan_renderer_texture_write_data(renderer_backend_interface* backend, ktext
 		// }
 	}
 
-	if (!include_in_frame_workload) {
+	if (!defer_to_next_frame) {
 		renderer_renderbuffer_destroy(backend->frontend_state, staging);
 
 		// Counts as a texture update. The texture generation here can only really be updated if
@@ -2133,7 +2126,7 @@ static b8 texture_read_offset_range(
 			width = image->width;
 			height = image->height;
 		} else {
-			// NOTE: Assuming RGBA/8bpp
+			// FIXME: Assuming RGBA/8bpp
 			size = image->width * image->height * 4 * sizeof(u8);
 		}
 
@@ -2160,7 +2153,7 @@ static b8 texture_read_offset_range(
 
 		// Transition from optimal for data reading to shader-read-only optimal layout.
 		// TODO: Should probably cache the previous layout and transfer back to that instead.
-		vulkan_image_transition_layout(context, &temp_buffer, image, image->format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		vulkan_image_transition_layout(context, &temp_buffer, image, image->format, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		vulkan_command_buffer_end_single_use(context, pool, &temp_buffer, queue);
 
@@ -2332,7 +2325,7 @@ b8 vulkan_renderer_shader_create(
 		for (u32 u = 0; u < bset_state->max_instance_count; ++u) {
 			vulkan_shader_binding_set_instance_state* instance_state = &bset_state->instances[u];
 
-#ifdef KOHI_DEBUG
+#if KOHI_DEBUG
 			instance_state->descriptor_set_index = i;
 #endif
 
@@ -3097,7 +3090,7 @@ u32 vulkan_renderer_shader_acquire_binding_set_instance(renderer_backend_interfa
 		}
 	}
 
-	KERROR("%s - Failed to find a free instance in shader '%s' for binding set %u.", kname_string_get(internal_shader->name), binding_set);
+	KERROR("%s - Failed to find a free instance in shader '%s' for binding set %u.", __FUNCTION__, kname_string_get(internal_shader->name), binding_set);
 	return INVALID_ID_U32;
 }
 
@@ -3422,7 +3415,7 @@ b8 vulkan_renderbuffer_create(renderer_backend_interface* backend, kname name, u
 	krhi_vulkan* rhi = &context->rhi;
 	KASSERT_DEBUG(handle != KRENDERBUFFER_INVALID);
 
-	KTRACE("Creating vulkan renderbuffer: '%s'...", kname_string_get(name));
+	/* KTRACE("Creating vulkan renderbuffer: '%s'...", kname_string_get(name)); */
 
 	u16 len = darray_length(context->renderbuffers);
 	if (handle > (len - 1)) {
@@ -3493,7 +3486,7 @@ b8 vulkan_renderbuffer_create(renderer_backend_interface* backend, kname name, u
 	for (u8 i = 0; i < internal_buffer->handle_count; ++i) {
 
 		VK_CHECK(rhi->kvkCreateBuffer(context->device.logical_device, &buffer_info, context->allocator, &internal_buffer->infos[i].handle));
-		KTRACE("VkBuffer created at %p", internal_buffer->infos[i].handle);
+		/* KTRACE("VkBuffer created at %p", internal_buffer->infos[i].handle); */
 
 		VK_SET_DEBUG_OBJECT_NAME_INDEXED(context, VK_OBJECT_TYPE_BUFFER, internal_buffer->infos[i].handle, kname_string_get(internal_buffer->name), i);
 
@@ -3555,7 +3548,7 @@ void vulkan_renderbuffer_destroy(renderer_backend_interface* backend, krenderbuf
 				rhi->kvkFreeMemory(context->device.logical_device, internal_buffer->infos[i].memory, context->allocator);
 				internal_buffer->infos[i].memory = 0;
 			}
-			KTRACE("VkBuffer destroyed at %p", internal_buffer->infos[i].handle);
+			/* KTRACE("VkBuffer destroyed at %p", internal_buffer->infos[i].handle); */
 			if (internal_buffer->infos[i].handle) {
 				rhi->kvkDestroyBuffer(context->device.logical_device, internal_buffer->infos[i].handle, context->allocator);
 				internal_buffer->infos[i].handle = 0;
@@ -4053,8 +4046,6 @@ static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_
 	// FIXME: remove this since this should be dynamic state and thus should not be required for this pipeline creation.
 	rasterizer_create_info.cullMode = VK_CULL_MODE_NONE;
 
-	
-
 	if (config->winding == RENDERER_WINDING_CLOCKWISE) {
 		rasterizer_create_info.frontFace = VK_FRONT_FACE_CLOCKWISE;
 	} else if (config->winding == RENDERER_WINDING_COUNTER_CLOCKWISE) {
@@ -4084,7 +4075,7 @@ static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_
 		if (config->shader_flags & SHADER_FLAG_DEPTH_WRITE_BIT) {
 			depth_stencil.depthWriteEnable = VK_TRUE;
 		}
-		depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS; //VK_COMPARE_OP_LESS_OR_EQUAL; // VK_COMPARE_OP_LESS;
+		depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS; // VK_COMPARE_OP_LESS_OR_EQUAL; // VK_COMPARE_OP_LESS;
 		depth_stencil.depthBoundsTestEnable = VK_FALSE;
 	}
 

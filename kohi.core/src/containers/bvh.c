@@ -12,8 +12,7 @@
 #define BVH_PADDING 0.1f
 
 // Uncomment the below line if wanting to trace BVH selection, etc.
-// FIXME: disabling this causes selection issues!?
-#define BVH_TRACE 1
+/* #define BVH_TRACE 1 */
 
 static u32 bvh_alloc_node(bvh* t);
 static void bvh_free_node(bvh* t, u32 id);
@@ -200,8 +199,11 @@ raycast_result bvh_raycast(const bvh* t, const ray* r, bvh_raycast_callback call
 
 #if BVH_TRACE
 		nodes_tested++;
+#endif
+
 		b8 hit = ray_intersects_aabb(n->aabb, r->origin, r->direction, r->max_distance, &tmin, &tmaxi);
 
+#if BVH_TRACE
 		if (bvh_is_leaf(n)) {
 			KINFO("  Leaf %u (user=%llu): hit=%d, tmin=%.3f, AABB: min(%.3f,%.3f,%.3f) max(%.3f,%.3f,%.3f)",
 				  id, n->user, hit, tmin,
@@ -211,18 +213,22 @@ raycast_result bvh_raycast(const bvh* t, const ray* r, bvh_raycast_callback call
 			KINFO("  Internal %u: hit=%d, tmin=%.3f, children=(%u,%u)",
 				  id, hit, tmin, n->left, n->right);
 		}
+#endif
 
 		if (!hit) {
 			continue;
 		}
 
+#if BVH_TRACE
 		nodes_passed++;
+#endif
 
 		if (tmin < 0.0f || tmin > r->max_distance) {
+#if BVH_TRACE
 			KINFO("    -> Rejected: tmin out of range");
+#endif
 			continue;
 		}
-#endif
 
 		if (bvh_is_leaf(n)) {
 			// Ignore if the origin is inside, depending on flags.

@@ -62,8 +62,7 @@ typedef enum keymap_entry_bind_type {
 	KEYMAP_BIND_TYPE_UNSET = 0x8
 } keymap_entry_bind_type;
 
-/** @brief A typedef of a keybinding callback to be made when a keybinding is activated. */
-typedef void (*PFN_keybind_callback)(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+typedef u32 keymap_action_code;
 
 /**
  * @brief Represents an individual binding, containing the keybind type,
@@ -76,10 +75,8 @@ typedef struct keymap_binding {
 	keymap_entry_bind_type type;
 	/** @brief Required modifiers, if any. Default: KEYMAP_MODIFIER_NONE_BIT */
 	keymap_modifier modifiers;
-	/** @brief A function pointer to be invoked when this binding is triggered. */
-	PFN_keybind_callback callback;
-	/** @brief User data, if supplied. Otherwise 0. */
-	void* user_data;
+	/** @brief A code for an action to be passed to the application when this binding is triggered. */
+	keymap_action_code code;
 	/** @brief A pointer to the next binding in the linked list, or 0 if the tail. */
 	struct keymap_binding* next;
 } keymap_binding;
@@ -122,10 +119,9 @@ KAPI keymap keymap_create(void);
  * @param key The key to bind to.
  * @param type The type of binding.
  * @param modifiers Required modifier keys, if any (OR them together).
- * @param user_data User data, if any. Optional.
- * @param callback The callback function pointer. Required.
+ * @param code The action code provided by the application. Required.
  */
-KAPI void keymap_binding_add(keymap* map, keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data, PFN_keybind_callback callback);
+KAPI void keymap_binding_add(keymap* map, keys key, keymap_entry_bind_type type, keymap_modifier modifiers, keymap_action_code code);
 
 /**
  * @brief Removes the binding from the given keymap that also matches
@@ -136,9 +132,9 @@ KAPI void keymap_binding_add(keymap* map, keys key, keymap_entry_bind_type type,
  * @param key The key to bind to.
  * @param type The type of binding.
  * @param modifiers The modifiers required for the binding.
- * @param callback The callback to be made from the biding. Required.
+ * @param code The action code associated with the binding. Required.
  */
-KAPI void keymap_binding_remove(keymap* map, keys key, keymap_entry_bind_type type, keymap_modifier modifiers, PFN_keybind_callback callback);
+KAPI void keymap_binding_remove(keymap* map, keys key, keymap_entry_bind_type type, keymap_modifier modifiers, keymap_action_code code);
 
 /**
  * @brief Clears all bindings from the given keymap.
